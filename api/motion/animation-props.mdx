@@ -1,0 +1,342 @@
+---
+title: Animation Props
+description: Motion-specific props for declarative text animations
+---
+
+The Motion `<SplitText>` component accepts all Motion animation props. These props can use flat targets (applied to the most granular split type) or per-type targets for specific control over chars, words, lines, and the wrapper element.
+
+## Animation Lifecycle Props
+
+<ParamField path="initial" type="string | VariantDefinition | false">
+  Initial variant applied instantly after text is split. Transitions are ignored on mount.
+  
+  - **String**: Reference to a named variant in `variants` prop
+  - **Object**: Inline variant definition
+  - **false**: Skip initial variant application
+  
+  ```tsx
+  // Named variant
+  <SplitText
+    variants={{ hidden: { opacity: 0, y: 20 } }}
+    initial="hidden"
+  >
+    <h1>Text</h1>
+  </SplitText>
+  
+  // Inline variant
+  <SplitText initial={{ opacity: 0, y: 20 }}>
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="animate" type="string | VariantDefinition">
+  Variant to animate to immediately after split completes.
+  
+  ```tsx
+  <SplitText
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.6, delay: stagger(0.05) }}
+    options={{ type: "words" }}
+  >
+    <h1>Fades in word by word</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="exit" type="string | VariantDefinition | false">
+  Variant to animate to when component exits. Requires wrapping in `<AnimatePresence>`.
+  
+  Set to `false` to disable exit animations.
+  
+  ```tsx
+  import { AnimatePresence } from "motion/react";
+  
+  <AnimatePresence>
+    {visible && (
+      <SplitText
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <p>I animate out</p>
+      </SplitText>
+    )}
+  </AnimatePresence>
+  ```
+</ParamField>
+
+## Viewport Props
+
+<ParamField path="whileInView" type="string | VariantDefinition">
+  Variant to animate to when the element enters the viewport.
+  
+  Configure viewport detection with the `viewport` prop (see [React SplitText](/api/react/split-text)).
+  
+  ```tsx
+  <SplitText
+    initial={{ opacity: 0, y: 30 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ amount: 0.5, once: true }}
+    transition={{ duration: 0.8, delay: stagger(0.04) }}
+    options={{ type: "words" }}
+  >
+    <h2>Scroll-triggered animation</h2>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="whileOutOfView" type="string | VariantDefinition">
+  Variant to animate to when element leaves viewport.
+  
+  Use with `resetOnViewportLeave` to reset animations when scrolling away.
+</ParamField>
+
+## Scroll-Driven Animation
+
+<ParamField path="whileScroll" type="string | VariantDefinition">
+  Variant whose animation progress is driven by scroll position.
+  
+  Takes priority over `animate` and `whileInView`. Animation values interpolate based on scroll progress within the defined range.
+  
+  ```tsx
+  <SplitText
+    whileScroll={{ opacity: [0, 1], y: [50, 0] }}
+    scroll={{ offset: ["start end", "end start"], axis: "y" }}
+    options={{ type: "chars" }}
+  >
+    <h1>Scroll-linked reveal</h1>
+  </SplitText>
+  ```
+  
+  Configure scroll behavior with the `scroll` prop.
+</ParamField>
+
+<ParamField path="scroll" type="ScrollPropOptions">
+  Configuration for `whileScroll` animations.
+  
+  **Properties:**
+  - `offset` - Scroll range as `[start, end]` strings. Default: `["start end", "end start"]`
+  - `axis` - Scroll axis (`"x"` or `"y"`). Default: `"y"`
+  - `container` - React ref to scroll container. Default: nearest scrollable ancestor
+  
+  ```tsx
+  <SplitText
+    whileScroll={{ scale: [0.8, 1] }}
+    scroll={{
+      offset: ["start 0.9", "start 0.1"],
+      axis: "y"
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+## Gesture Props
+
+<ParamField path="whileHover" type="string | VariantDefinition">
+  Variant to animate to when hovering over the wrapper element.
+  
+  ```tsx
+  <SplitText
+    whileHover={{
+      chars: ({ index, count }) => ({
+        y: -8,
+        transition: { delay: (index / count) * 0.2 }
+      })
+    }}
+    options={{ type: "chars" }}
+  >
+    <span className="hover-text">Hover me</span>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="whileTap" type="string | VariantDefinition">
+  Variant to animate to when tapping/clicking the wrapper element.
+  
+  ```tsx
+  <SplitText
+    whileTap={{ scale: 0.95 }}
+    options={{ type: "words" }}
+  >
+    <button>Click me</button>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="whileFocus" type="string | VariantDefinition">
+  Variant to animate to when the wrapper element receives focus.
+  
+  ```tsx
+  <SplitText
+    whileFocus={{ chars: { color: "#0066ff" } }}
+    options={{ type: "chars" }}
+  >
+    <input type="text" />
+  </SplitText>
+  ```
+</ParamField>
+
+## Transition
+
+<ParamField path="transition" type="AnimationOptions">
+  Global transition options applied to all variant animations.
+  
+  Individual variant transitions take precedence over this global value.
+  
+  **Common properties:**
+  - `duration` - Animation duration in seconds
+  - `delay` - Delay in seconds (can be a function: `(index, count) => number`)
+  - `ease` - Easing function
+  - `type` - Animation type (`"tween"`, `"spring"`, `"inertia"`)
+  
+  ```tsx
+  <SplitText
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{
+      duration: 0.6,
+      delay: stagger(0.05),
+      ease: "easeOut"
+    }}
+    options={{ type: "words" }}
+  >
+    <h1>Staggered fade in</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+## Delay Scope
+
+<ParamField path="delayScope" type="'global' | 'local'" default="global">
+  Controls how delay functions (and function variants) resolve indices.
+  
+  - **`global`**: Uses `globalIndex` and `globalCount` (all elements of that type across entire split)
+  - **`local`**: Uses `index` and `count` (elements within nearest parent group - line for chars, etc.)
+  
+  ```tsx
+  // Global scope: delays based on position across all chars
+  <SplitText
+    animate={{
+      chars: ({ globalIndex, globalCount }) => ({
+        opacity: 1,
+        transition: { delay: (globalIndex / globalCount) * 0.5 }
+      })
+    }}
+    delayScope="global"
+    options={{ type: "chars" }}
+  >
+    <p>Global stagger</p>
+  </SplitText>
+  
+  // Local scope: delays reset per line
+  <SplitText
+    animate={{
+      chars: ({ index, count }) => ({
+        opacity: 1,
+        transition: { delay: (index / count) * 0.5 }
+      })
+    }}
+    delayScope="local"
+    options={{ type: "chars,lines" }}
+  >
+    <p>Delays restart on each line</p>
+  </SplitText>
+  ```
+</ParamField>
+
+## Custom Data
+
+<ParamField path="custom" type="any">
+  Custom data forwarded to function variants.
+  
+  Access via the `custom` parameter in `VariantInfo`.
+  
+  ```tsx
+  <SplitText
+    custom={{ color: "#ff6b6b", speed: 0.8 }}
+    animate={{
+      chars: ({ custom }) => ({
+        color: custom.color,
+        transition: { duration: custom.speed }
+      })
+    }}
+    options={{ type: "chars" }}
+  >
+    <span>Custom data</span>
+  </SplitText>
+  ```
+</ParamField>
+
+## Flat vs Per-Type Targets
+
+All animation props accept either:
+
+1. **Flat targets** - Applied to the most granular split type
+2. **Per-type targets** - Specific targets for chars, words, lines, and wrapper
+
+### Flat Target
+
+Applied to the most granular element type based on `options.type`:
+
+```tsx
+// Applied to all chars (most granular)
+<SplitText
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  options={{ type: "chars,words,lines" }}
+>
+  <h1>Text</h1>
+</SplitText>
+```
+
+### Per-Type Targets
+
+Explicitly target different element types:
+
+```tsx
+<SplitText
+  initial={{
+    chars: { opacity: 0, y: 20 },
+    lines: { opacity: 0 },
+    wrapper: { opacity: 1 }
+  }}
+  animate={{
+    chars: { opacity: 1, y: 0 },
+    lines: { opacity: 1 },
+    wrapper: { opacity: 1 }
+  }}
+  options={{ type: "chars,lines" }}
+>
+  <h1>Text</h1>
+</SplitText>
+```
+
+Per-type targets can also be functions:
+
+```tsx
+<SplitText
+  animate={{
+    chars: ({ lineIndex, index }) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: stagger(0.02, { startDelay: lineIndex * 0.1 })
+      }
+    }),
+    wrapper: { opacity: 1 }
+  }}
+  options={{ type: "chars,lines" }}
+>
+  <p>Per-line char stagger</p>
+</SplitText>
+```
+
+## Related
+
+- [Variants](/api/motion/variants) - Deep dive into variants and function variants
+- [SplitText](/api/motion/split-text) - Main component documentation
+- [React SplitText](/api/react/split-text) - Base React props (viewport, callbacks, etc.)

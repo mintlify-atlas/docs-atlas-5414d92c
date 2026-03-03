@@ -1,0 +1,329 @@
+---
+title: createSplitClones
+description: Create clone layers from split text for reveal and swap effects
+---
+
+The `createSplitClones()` function from `griffo/helpers` creates clone layers from split text output. This is useful for advanced reveal effects, swap animations, and layered text transitions.
+
+## Import
+
+```typescript
+import { createSplitClones } from "griffo/helpers";
+```
+
+## Basic usage
+
+```typescript
+import { splitText } from "griffo";
+import { createSplitClones } from "griffo/helpers";
+import { animate, stagger } from "motion";
+
+const split = splitText(element, { type: "chars", mask: "chars" });
+const layers = createSplitClones(split, { unit: "chars", wrap: true });
+
+// Animate originals and clones
+animate(
+  layers.originals,
+  { y: ["0%", "-100%"] },
+  { delay: stagger(0.02) }
+);
+
+animate(
+  layers.clones,
+  { y: ["100%", "0%"] },
+  { delay: stagger(0.02) }
+);
+```
+
+## Function signature
+
+```typescript
+function createSplitClones(
+  split: SplitTextResult,
+  options: CreateSplitClonesOptions
+): CreateSplitClonesResult
+```
+
+## Parameters
+
+<ParamField path="split" type="SplitTextResult" required>
+  The result object from a `splitText()` call.
+
+  ```typescript
+  const split = splitText(element, { type: "chars" });
+  const layers = createSplitClones(split, { unit: "chars" });
+  ```
+</ParamField>
+
+<ParamField path="options" type="CreateSplitClonesOptions" required>
+  Configuration for clone creation.
+</ParamField>
+
+### Options
+
+<ParamField path="options.unit" type="'chars' | 'words' | 'lines'" required>
+  Which split unit to clone.
+
+  ```typescript
+  createSplitClones(split, { unit: "chars" })
+  createSplitClones(split, { unit: "words" })
+  createSplitClones(split, { unit: "lines" })
+  ```
+</ParamField>
+
+<ParamField path="options.wrap" type="boolean" default={false}>
+  Whether to wrap each original element in a track container.
+
+  ```typescript
+  createSplitClones(split, {
+    unit: "chars",
+    wrap: true // Creates track wrappers with position: relative
+  })
+  ```
+
+  When `true`, each original is wrapped in a `<span>` with `position: relative`, and clones are positioned absolutely within these tracks.
+</ParamField>
+
+<ParamField path="options.display" type="'auto' | 'inline-block' | 'block'" default="'auto'">
+  Display style for track wrappers (only applies when `wrap: true`).
+
+  - `"auto"` - Uses `inline-block` for chars/words, `block` for lines
+  - `"inline-block"` - Force inline-block
+  - `"block"` - Force block
+
+  ```typescript
+  createSplitClones(split, {
+    unit: "words",
+    wrap: true,
+    display: "block"
+  })
+  ```
+</ParamField>
+
+<ParamField path="options.cloneOffset" type="object">
+  Position offset for clones relative to originals.
+
+  ```typescript
+  createSplitClones(split, {
+    unit: "chars",
+    wrap: true,
+    cloneOffset: {
+      axis: "y",        // "x" | "y"
+      direction: "start", // "start" | "end"
+      distance: "100%"  // Any CSS length
+    }
+  })
+  ```
+
+  **Properties:**
+  - `axis` - Offset direction (`"x"` horizontal, `"y"` vertical)
+  - `direction` - Offset side (`"start"` negative, `"end"` positive)
+  - `distance` - Offset amount (CSS length)
+
+  **Defaults:** `{ axis: "y", direction: "start", distance: "100%" }`
+</ParamField>
+
+<ParamField path="options.trackClassName" type="ClassInput">
+  CSS class for track wrappers. Can be a string or function.
+
+  ```typescript
+  // Static
+  trackClassName: "clone-track"
+
+  // Function
+  trackClassName: ({ index, unit, original }) =>
+    `track-${index}`
+  ```
+</ParamField>
+
+<ParamField path="options.cloneClassName" type="ClassInput">
+  CSS class for clone elements.
+
+  ```typescript
+  cloneClassName: ({ index }) => `clone clone-${index}`
+  ```
+</ParamField>
+
+<ParamField path="options.trackStyle" type="StyleInput">
+  Inline styles for track wrappers.
+
+  ```typescript
+  // Static
+  trackStyle: { overflow: "hidden" }
+
+  // Function
+  trackStyle: ({ index }) => ({
+    overflow: "hidden",
+    color: colors[index]
+  })
+  ```
+</ParamField>
+
+<ParamField path="options.cloneStyle" type="StyleInput">
+  Inline styles for clone elements.
+
+  ```typescript
+  cloneStyle: { color: "blue" }
+  ```
+</ParamField>
+
+## Return value
+
+<ResponseField name="unit" type="SplitUnit">
+  The unit type that was cloned.
+</ResponseField>
+
+<ResponseField name="originals" type="HTMLSpanElement[]">
+  Array of original split elements.
+</ResponseField>
+
+<ResponseField name="clones" type="HTMLSpanElement[]">
+  Array of cloned elements.
+</ResponseField>
+
+<ResponseField name="tracks" type="HTMLSpanElement[]">
+  Array of track wrapper elements (empty if `wrap: false`).
+</ResponseField>
+
+<ResponseField name="items" type="SplitCloneItem[]">
+  Array of objects containing:
+  ```typescript
+  {
+    index: number;
+    original: HTMLSpanElement;
+    clone: HTMLSpanElement;
+    track: HTMLSpanElement | null;
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="cleanup" type="(options?) => void">
+  Function to remove clones and tracks.
+
+  ```typescript
+  layers.cleanup(); // Remove clones only
+  layers.cleanup({ revertSplit: true }); // Remove clones and revert split
+  ```
+</ResponseField>
+
+## Examples
+
+### Vertical reveal
+
+```typescript
+import { splitText } from "griffo";
+import { createSplitClones } from "griffo/helpers";
+import { animate, stagger } from "motion";
+
+const split = splitText(element, { type: "words", mask: "words" });
+const { originals, clones, cleanup } = createSplitClones(split, {
+  unit: "words",
+  wrap: true,
+  cloneOffset: {
+    axis: "y",
+    direction: "start",
+    distance: "100%"
+  }
+});
+
+// Slide originals up and out
+animate(originals, { y: ["0%", "-100%"] }, { delay: stagger(0.03) });
+
+// Slide clones up into view
+animate(clones, { y: ["100%", "0%"] }, { delay: stagger(0.03) }).finished.then(() => {
+  cleanup({ revertSplit: true });
+});
+```
+
+### Horizontal swap
+
+```typescript
+const split = splitText(element, { type: "chars" });
+const { originals, clones, cleanup } = createSplitClones(split, {
+  unit: "chars",
+  wrap: true,
+  cloneOffset: {
+    axis: "x",
+    direction: "end",
+    distance: "100%"
+  },
+  cloneStyle: { color: "blue" }
+});
+
+animate(originals, { x: ["-100%"], opacity: [0] }, { delay: stagger(0.02) });
+animate(clones, { x: ["100%", "0%"], opacity: [0, 1] }, { delay: stagger(0.02) });
+```
+
+### Custom styling per clone
+
+```typescript
+const colors = ["red", "orange", "yellow", "green", "blue"];
+
+const layers = createSplitClones(split, {
+  unit: "chars",
+  wrap: true,
+  cloneStyle: ({ index }) => ({
+    color: colors[index % colors.length]
+  })
+});
+```
+
+## Type definitions
+
+```typescript
+type SplitUnit = "chars" | "words" | "lines";
+
+type StyleInput =
+  | Partial<CSSStyleDeclaration>
+  | ((ctx: {
+      index: number;
+      unit: SplitUnit;
+      original: HTMLSpanElement;
+    }) => Partial<CSSStyleDeclaration>);
+
+type ClassInput =
+  | string
+  | ((ctx: {
+      index: number;
+      unit: SplitUnit;
+      original: HTMLSpanElement;
+    }) => string | undefined);
+
+interface CreateSplitClonesOptions {
+  unit: SplitUnit;
+  wrap?: boolean;
+  display?: "auto" | "inline-block" | "block";
+  cloneOffset?: {
+    axis?: "x" | "y";
+    direction?: "start" | "end";
+    distance?: string;
+  };
+  trackClassName?: ClassInput;
+  cloneClassName?: ClassInput;
+  trackStyle?: StyleInput;
+  cloneStyle?: StyleInput;
+}
+
+interface SplitCloneItem {
+  index: number;
+  original: HTMLSpanElement;
+  clone: HTMLSpanElement;
+  track: HTMLSpanElement | null;
+}
+
+interface CreateSplitClonesResult {
+  unit: SplitUnit;
+  originals: HTMLSpanElement[];
+  clones: HTMLSpanElement[];
+  tracks: HTMLSpanElement[];
+  items: SplitCloneItem[];
+  cleanup: (options?: { revertSplit?: boolean }) => void;
+}
+```
+
+## Notes
+
+- Clones are inserted as siblings of the originals
+- When `wrap: true`, both original and clone are positioned within the track wrapper
+- The `cleanup()` function should be called when animations complete to remove clones and tracks
+- Pass `{ revertSplit: true }` to cleanup to also revert the original split

@@ -1,0 +1,179 @@
+---
+title: "splitText"
+description: "Split text into characters, words, and lines with kerning compensation"
+---
+
+## Overview
+
+The `splitText` function splits text into individual characters, words, and/or lines while preserving the original kerning (letter spacing). This prevents the visual "jumping" that occurs with naive text splitting.
+
+Griffo measures character positions before splitting, then applies margin adjustments after splitting to maintain visual fidelity.
+
+## Import
+
+```typescript
+import { splitText } from "griffo";
+```
+
+## Function Signature
+
+```typescript
+function splitText(
+  element: HTMLElement,
+  options?: SplitTextOptions
+): SplitTextResult
+```
+
+## Parameters
+
+<ParamField path="element" type="HTMLElement" required>
+  The HTML element containing text to split. Must have text content.
+</ParamField>
+
+<ParamField path="options" type="SplitTextOptions">
+  Configuration options for splitting behavior. See the [Options](/api/core/options) page for detailed documentation.
+</ParamField>
+
+## Returns
+
+Returns a `SplitTextResult` object containing arrays of split elements and utility functions. See the [Return Value](/api/core/return-value) page for detailed documentation.
+
+## Basic Usage
+
+```typescript
+import { splitText } from "griffo";
+import { animate, stagger } from "motion";
+
+const element = document.querySelector("h1");
+const { chars, words, lines, revert } = splitText(element);
+
+// Animate words
+animate(words, { opacity: [0, 1], y: [20, 0] }, { delay: stagger(0.05) });
+
+// Revert to original HTML when done
+revert();
+```
+
+## Split Types
+
+Control which elements to create using the `type` option:
+
+```typescript
+// Split into characters only
+splitText(element, { type: "chars" });
+
+// Split into words only
+splitText(element, { type: "words" });
+
+// Split into lines only
+splitText(element, { type: "lines" });
+
+// Combine multiple types
+splitText(element, { type: "chars,words,lines" });
+```
+
+## Auto-Revert After Animation
+
+Automatically revert the split after an animation completes:
+
+```typescript
+splitText(element, {
+  onSplit: ({ words }) => animate(words, { opacity: [0, 1] }),
+  revertOnComplete: true,
+});
+```
+
+Works with multiple animation libraries:
+- **Motion**: Returns objects with `.finished` Promise
+- **GSAP**: Returns thenables with `.then()` method
+- **Raw Promises**: Supported directly
+
+## Responsive Re-Splitting
+
+Automatically re-split text when the container resizes:
+
+```typescript
+splitText(element, {
+  autoSplit: true,
+  onResplit: ({ lines }) => {
+    // Re-animate after resize
+    animate(lines, { opacity: [0, 1] });
+  },
+});
+```
+
+<Note>
+  The `autoSplit` option requires the element to have a parent element. It observes the parent's width to detect when lines may have changed.
+</Note>
+
+## Custom Classes
+
+Apply custom class names to split elements:
+
+```typescript
+splitText(element, {
+  type: "chars,words,lines",
+  charClass: "char",
+  wordClass: "word",
+  lineClass: "line",
+});
+```
+
+## Mask Wrappers
+
+Add overflow mask wrappers for reveal animations:
+
+```typescript
+splitText(element, {
+  type: "lines",
+  mask: "lines",
+});
+```
+
+This wraps each line in a container with `overflow: clip`, perfect for slide-in animations.
+
+## CSS Custom Properties
+
+Add CSS custom properties with indices:
+
+```typescript
+splitText(element, {
+  type: "chars,words,lines",
+  propIndex: true,
+});
+```
+
+This adds `--char-index`, `--word-index`, and `--line-index` CSS custom properties to each element:
+
+```css
+/* Stagger animation using CSS */
+.char {
+  animation-delay: calc(var(--char-index) * 0.05s);
+}
+```
+
+## Errors
+
+<ResponseField name="Error" type="Error">
+  Throws if `element` is not an HTMLElement
+</ResponseField>
+
+## Warnings
+
+- If element has no text content, logs a warning and returns empty arrays
+- If `autoSplit` is enabled but element has no parent, logs a warning
+- If `type` doesn't include at least one of chars/words/lines, logs a warning and defaults to all three
+
+## Accessibility
+
+Griffo automatically handles accessibility:
+
+- For elements that support `aria-label` (headings, landmarks, interactive elements), the original text is set as `aria-label`
+- For other elements (span, div, p), a screen-reader-only copy of the original HTML is injected
+- Split elements are marked with `aria-hidden="true"` to hide them from screen readers
+
+## See Also
+
+- [Options](/api/core/options) - Detailed options documentation
+- [Return Value](/api/core/return-value) - Return value documentation
+- [Kerning](/guides/kerning) - How kerning compensation works

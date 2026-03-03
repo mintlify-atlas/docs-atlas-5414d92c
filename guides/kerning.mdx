@@ -1,0 +1,289 @@
+---
+title: Kerning Compensation
+description: How Griffo preserves typography when splitting text into characters
+---
+
+## The Problem
+
+When text is split into individual `<span>` elements, browsers lose kerning information between character pairs. This causes text to visually "jump" or appear looser than the original.
+
+<CodeGroup>
+
+```html Before Splitting
+<h1>WAVE</h1>
+<!-- Browser applies kerning: W-A, A-V, V-E -->
+```
+
+```html After Naive Splitting
+<h1>
+  <span>W</span>
+  <span>A</span>
+  <span>V</span>
+  <span>E</span>
+</h1>
+<!-- Kerning lost! Text looks spaced out -->
+```
+
+</CodeGroup>
+
+## What is Kerning?
+
+Kerning is the adjustment of space between specific character pairs to achieve visually balanced typography. Fonts contain kerning tables that define these adjustments.
+
+<Frame>
+  <img src="/images/kerning-example.png" alt="Kerning visualization showing character pairs" />
+</Frame>
+
+Common kerning pairs:
+- **AV**: Letters tuck closer together
+- **To**: Capital T extends over lowercase o
+- **We**: Capital W and lowercase e overlap slightly
+- **f)**: Lowercase f and closing paren nest
+
+## Griffo's Solution
+
+<Steps>
+  <Step title="Measure original kerning">
+    Before splitting, Griffo measures the exact width of each character pair in the original text.
+  </Step>
+  <Step title="Split into spans">
+    Text is split into `<span>` elements with `display: inline-block`.
+  </Step>
+  <Step title="Apply margin compensation">
+    Negative or positive margins are applied to character spans to restore the original spacing.
+  </Step>
+</Steps>
+
+### Code Implementation
+
+From `src/internal/kerningUpkeep.ts:411-447`:
+
+```ts
+// Measure kerning per style group
+for (const group of styleGroups) {
+  if (group.chars.length < 2) continue;
+  const charStrings = group.chars.map((char) => char.textContent || "");
+  const kerningMap = measureKerning(
+    element,
+    group.styleSource,
+    charStrings,
+    group.styles
+  );
+
+  // Apply kerning adjustments (negative = tighter, positive = looser)
+  for (const [charIndex, kerning] of kerningMap) {
+    const charSpan = group.chars[charIndex];
+    if (charSpan && Math.abs(kerning) < 20) {
+      charSpan.style.marginLeft = `${kerning}px`;
+    }
+  }
+}
+```
+
+## Measurement Strategies
+
+Griffo uses different measurement techniques based on browser:
+
+### Chrome, Firefox, Edge
+
+Uses the **Range API** for fast, accurate measurements:
+
+```ts
+// From kerningUpkeep.ts:189-229
+function measureKerningRange(measureRoot, styleSource, chars) {
+  const range = doc.createRange();
+  // Measure individual chars
+  for (const char of new Set(chars)) {
+    measurer.textContent = char;
+    charWidths.set(char, range.getBoundingClientRect().width);
+  }
+  // Measure pairs and calculate kerning
+  for (let i = 0; i < chars.length - 1; i++) {
+    measurer.textContent = chars[i] + chars[i + 1];
+    const kerning = measureWidth() - charWidths.get(chars[i]) - charWidths.get(chars[i + 1]);
+  }
+}
+```
+
+### Safari
+
+Uses **DOM element measurement** to account for `-webkit-font-smoothing`:
+
+```ts
+// From kerningUpkeep.ts:116-177
+function measureKerningDOM(measureRoot, styleSource, chars, styles) {
+  // Copy font-smoothing (critical for Safari)
+  const webkitSmoothing = computedStyles.webkitFontSmoothing;
+  if (webkitSmoothing) {
+    measurer.style.webkitFontSmoothing = webkitSmoothing;
+  }
+
+  // Measure chars and pairs using getBoundingClientRect()
+  for (let i = 0; i < chars.length - 1; i++) {
+    measurer.textContent = chars[i] + chars[i + 1];
+    const pairWidth = measurer.getBoundingClientRect().width;
+    const kerning = pairWidth - charWidths.get(chars[i]) - charWidths.get(chars[i + 1]);
+  }
+}
+```
+
+<Info>
+  Safari requires DOM measurement because `-webkit-font-smoothing` affects glyph rendering and metrics.
+</Info>
+
+## Cross-Word Kerning
+
+Griffo also compensates kerning across word boundaries:
+
+```ts
+// From kerningUpkeep.ts:452-499
+// Measure the full cross-word kerning: "lastChar + space + firstChar"
+const kerningMap = measureKerning(
+  element,
+  firstCharSpan,
+  [lastChar, " ", firstChar],
+  styles
+);
+
+// Apply sum of space kerning to first char of next word
+let totalKerning = 0;
+if (kerningMap.has(1)) totalKerning += kerningMap.get(1);
+if (kerningMap.has(2)) totalKerning += kerningMap.get(2);
+
+if (Math.abs(totalKerning) < 20) {
+  firstCharSpan.style.marginLeft = `${totalKerning}px`;
+}
+```
+
+## Contextual Scripts
+
+Griffo **skips kerning compensation** for scripts with contextual shaping:
+
+```ts
+// From kerningUpkeep.ts:11-16
+const CONTEXTUAL_SCRIPT_REGEX =
+  /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF\uFB1D-\uFB4F\u0E00-\u0E7F\u0900-\u097F]/;
+
+if (hasContextualScript(charStrings)) continue;
+```
+
+Supported scripts:
+- Arabic (letters change form based on position)
+- Hebrew (right-to-left with contextual forms)
+- Thai (complex ligatures and vowel stacking)
+- Devanagari (conjunct consonants)
+
+<Warning>
+  For these scripts, character-by-character kerning measurement is inaccurate due to contextual glyph substitution.
+</Warning>
+
+## Disabling Kerning
+
+If you prefer no compensation over imperfect compensation:
+
+```ts
+splitText(element, {
+  type: "chars",
+  disableKerning: true, // No margin adjustments applied
+});
+```
+
+<Note>
+  Even with `disableKerning: true`, ligatures are still disabled (`font-variant-ligatures: none`) because ligatures cannot span multiple elements.
+</Note>
+
+## Ligatures
+
+Griffo automatically disables ligatures when splitting by characters:
+
+```ts
+// From splitText.ts:262-265
+if (splitChars) {
+  element.style.fontVariantLigatures = "none";
+}
+```
+
+**Why?** Ligatures like "fi", "fl", "ffi" are single glyphs that cannot be split. Disabling them ensures each character renders independently.
+
+## Performance Considerations
+
+### Measurement Isolation
+
+By default, kerning is measured in an isolated container to avoid layout thrashing:
+
+```ts
+// From kerningUpkeep.ts:85-109
+function getKerningMeasureRoot(doc: Document): HTMLDivElement {
+  const root = doc.createElement("div");
+  root.style.cssText = [
+    "position:fixed",
+    "left:0",
+    "top:0",
+    "visibility:hidden",
+    "pointer-events:none",
+    "contain:layout paint",
+  ].join(";");
+  doc.body.appendChild(root);
+  return root;
+}
+```
+
+### Style Grouping
+
+Kerning is only measured once per unique style combination:
+
+```ts
+// From kerningUpkeep.ts:395-424
+// Group consecutive chars by computed style
+const styleGroups = [];
+let currentKey = buildKerningStyleKey(firstCharStyles);
+let currentGroup = { chars: [wordChars[0]], styleSource: wordChars[0] };
+
+for (let i = 1; i < wordChars.length; i++) {
+  const key = buildKerningStyleKey(charStyles);
+  if (key === currentKey) {
+    currentGroup.chars.push(char);
+  } else {
+    styleGroups.push(currentGroup);
+    currentGroup = { chars: [char], styleSource: char };
+  }
+}
+```
+
+## Accuracy
+
+<Accordion title="Why not pixel-perfect?">
+  Kerning compensation is **subpixel-accurate** in most cases, but small discrepancies can occur due to:
+
+  1. **Rounding**: Margins are rounded to full pixels
+  2. **Font hinting**: Different hinting at different sizes
+  3. **Browser rendering**: Subtle differences in text rendering engines
+
+  In practice, differences are typically less than 0.5px per character.
+</Accordion>
+
+## Visual Comparison
+
+<Frame>
+  <img src="/images/kerning-comparison.png" alt="Side-by-side comparison of text with and without kerning compensation" />
+</Frame>
+
+**Left**: Text split without kerning compensation (appears loose)  
+**Right**: Text split with Griffo's compensation (matches original)
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Vanilla JS" icon="js" href="/guides/vanilla-js">
+    Core splitText API
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimization tips
+  </Card>
+  <Card title="Accessibility" icon="universal-access" href="/guides/accessibility">
+    Screen reader support
+  </Card>
+  <Card title="React" icon="react" href="/guides/react">
+    React component guide
+  </Card>
+</CardGroup>

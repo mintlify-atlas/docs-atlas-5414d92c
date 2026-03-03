@@ -1,0 +1,446 @@
+---
+title: Accessibility
+description: How Griffo maintains screen reader support and semantic structure when splitting text
+---
+
+## Overview
+
+Griffo automatically preserves accessibility when splitting text. Screen readers receive the original, unsplit text while sighted users see the animated version.
+
+<Info>
+  **Zero configuration required.** Accessibility features are built-in and enabled by default.
+</Info>
+
+## Screen Reader Strategy
+
+Griffo uses two strategies based on element type:
+
+### 1. aria-label for Headings
+
+Headings (`<h1>`-`<h6>`) and other landmark elements use `aria-label`:
+
+```html Before
+<h1>Hello World</h1>
+```
+
+```html After Split
+<h1 aria-label="Hello World">
+  <span aria-hidden="true">
+    <span class="split-word">Hello</span>
+    <span class="split-word">World</span>
+  </span>
+</h1>
+```
+
+<Note>
+  Screen readers announce "Hello World" using the `aria-label`, ignoring the split spans.
+</Note>
+
+### 2. sr-only Copy for Other Elements
+
+Generic elements (`<p>`, `<div>`, `<span>`) get a hidden copy:
+
+```html Before
+<p>Animated paragraph</p>
+```
+
+```html After Split
+<p>
+  <span aria-hidden="true" data-griffo-visual="true">
+    <span class="split-word">Animated</span>
+    <span class="split-word">paragraph</span>
+  </span>
+  <span class="griffo-sr-only">Animated paragraph</span>
+</p>
+```
+
+#### Screen Reader Styles
+
+Griffo injects this CSS once per page:
+
+```css
+.griffo-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+```
+
+From `src/core/splitText.ts:407-425`:
+
+```ts
+function injectSrOnlyStyles(): void {
+  if (srOnlyStylesInjected || typeof document === 'undefined') return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+.griffo-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}`;
+  document.head.appendChild(style);
+  srOnlyStylesInjected = true;
+}
+```
+
+## Preserved Nested Elements
+
+Griffo preserves semantic inline elements like `<a>`, `<em>`, `<strong>` with all attributes:
+
+### Links
+
+```html Before
+<p>Read the <a href="/docs">documentation</a> for details.</p>
+```
+
+```html After Split
+<p>
+  <span aria-hidden="true" data-griffo-visual="true">
+    <span class="split-word">Read</span>
+    <span class="split-word">the</span>
+    <a href="/docs">
+      <span class="split-word">documentation</span>
+    </a>
+    <span class="split-word">for</span>
+    <span class="split-word">details.</span>
+  </span>
+  <span class="griffo-sr-only">
+    Read the <a href="/docs">documentation</a> for details.
+  </span>
+</p>
+```
+
+<Check>
+  Screen reader users can navigate to the link and activate it normally.
+</Check>
+
+### Emphasis
+
+```html Before
+<p>This is <em>really</em> important.</p>
+```
+
+```html After Split
+<p>
+  <span aria-hidden="true" data-griffo-visual="true">
+    <span class="split-word">This</span>
+    <span class="split-word">is</span>
+    <em>
+      <span class="split-word">really</span>
+    </em>
+    <span class="split-word">important.</span>
+  </span>
+  <span class="griffo-sr-only">
+    This is <em>really</em> important.
+  </span>
+</p>
+```
+
+### Complex Nesting
+
+```html Before
+<h2>
+  <a href="/blog/post-1">
+    Read our <strong>latest</strong> blog post
+  </a>
+</h2>
+```
+
+```html After Split
+<h2 aria-label="Read our latest blog post">
+  <span aria-hidden="true" data-griffo-visual="true">
+    <a href="/blog/post-1">
+      <span class="split-word">Read</span>
+      <span class="split-word">our</span>
+      <strong>
+        <span class="split-word">latest</span>
+      </strong>
+      <span class="split-word">blog</span>
+      <span class="split-word">post</span>
+    </a>
+  </span>
+</h2>
+```
+
+<Info>
+  All inline elements are preserved in **both** the visual output and screen reader copy.
+</Info>
+
+## Allowed Inline Elements
+
+Griffo preserves these inline elements:
+
+<CodeGroup>
+
+```ts Links & Navigation
+<a>, <abbr>, <acronym>
+```
+
+```ts Emphasis & Formatting
+<em>, <strong>, <b>, <i>, <u>, <s>, <mark>, <small>, <big>
+```
+
+```ts Code & Data
+<code>, <kbd>, <samp>, <var>, <data>, <time>
+```
+
+```ts Quotes & Edits
+<q>, <cite>, <del>, <ins>
+```
+
+```ts Text Direction
+<bdi>, <bdo>
+```
+
+```ts Definitions
+<dfn>, <sub>, <sup>
+```
+
+</CodeGroup>
+
+From `src/core/splitText.ts:393-398`:
+
+```ts
+const INLINE_ELEMENTS = new Set([
+  'a', 'abbr', 'acronym', 'b', 'bdi', 'bdo', 'big', 'cite', 'code',
+  'data', 'del', 'dfn', 'em', 'i', 'ins', 'kbd', 'mark', 'q', 's',
+  'samp', 'small', 'span', 'strong', 'sub', 'sup', 'time', 'u', 'var',
+]);
+```
+
+## aria-label Allowed Elements
+
+These elements support `aria-label` natively:
+
+<Tabs>
+  <Tab title="Headings">
+    `<h1>`, `<h2>`, `<h3>`, `<h4>`, `<h5>`, `<h6>`
+  </Tab>
+  <Tab title="Landmarks">
+    `<section>`, `<article>`, `<nav>`, `<aside>`, `<header>`, `<footer>`, `<main>`
+  </Tab>
+  <Tab title="Interactive">
+    `<a>`, `<button>`, `<input>`, `<select>`, `<textarea>`
+  </Tab>
+  <Tab title="Other">
+    `<table>`, `<figure>`, `<form>`, `<fieldset>`, `<dialog>`, `<details>`, `<img>`
+  </Tab>
+</Tabs>
+
+From `src/core/splitText.ts:46-53`:
+
+```ts
+const ARIA_LABEL_ALLOWED_TAGS = new Set([
+  "h1", "h2", "h3", "h4", "h5", "h6",
+  "a", "button", "img", "input", "select", "textarea",
+  "table", "figure", "form", "fieldset", "dialog", "details",
+  "section", "article", "nav", "aside", "header", "footer", "main",
+]);
+```
+
+## Testing with Screen Readers
+
+### macOS VoiceOver
+
+1. Enable: `Cmd + F5`
+2. Navigate: `Control + Option + Arrow Keys`
+3. Read all: `Control + Option + A`
+
+### NVDA (Windows)
+
+1. Download: [nvaccess.org](https://www.nvaccess.org/)
+2. Navigate: `Arrow Keys`
+3. Read all: `Insert + Down Arrow`
+
+### JAWS (Windows)
+
+1. Navigate: `Arrow Keys`
+2. Read all: `Insert + Down Arrow`
+3. Virtual cursor: `Num Pad Plus`
+
+## Automatic Detection
+
+Griffo automatically detects when to use each strategy:
+
+```ts
+// From splitText.ts:267-293
+const trackAncestors = hasInlineDescendants(element);
+const useAriaLabel =
+  !trackAncestors &&
+  ARIA_LABEL_ALLOWED_TAGS.has(element.tagName.toLowerCase());
+
+performSplit(
+  element,
+  measuredWords,
+  charClass,
+  wordClass,
+  lineClass,
+  splitChars,
+  splitWords,
+  splitLines,
+  {
+    ariaHidden: useAriaLabel,
+  }
+);
+
+if (trackAncestors) {
+  // Has nested links/emphasis - use sr-only copy
+  element.appendChild(createScreenReaderCopy(originalHTML));
+} else if (useAriaLabel) {
+  // Heading or landmark - use aria-label
+  element.setAttribute("aria-label", text);
+} else {
+  // Generic element - use sr-only copy
+  element.appendChild(createScreenReaderCopy(originalHTML));
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use semantic HTML">
+    Always use appropriate semantic elements (`<h1>`, `<p>`, `<a>`) instead of generic `<div>` or `<span>` tags.
+
+    ```tsx Good
+    <SplitText>
+      <h1>Page Title</h1>
+    </SplitText>
+    ```
+
+    ```tsx Avoid
+    <SplitText>
+      <div className="heading">Page Title</div>
+    </SplitText>
+    ```
+  </Accordion>
+
+  <Accordion title="Preserve link context">
+    Keep link text meaningful within nested splits:
+
+    ```tsx Good
+    <SplitText>
+      <p>
+        Read the <a href="/docs">documentation</a> for details.
+      </p>
+    </SplitText>
+    ```
+
+    ```tsx Avoid
+    <SplitText>
+      <p>
+        <a href="/docs">Click here</a> for docs.
+      </p>
+    </SplitText>
+    ```
+  </Accordion>
+
+  <Accordion title="Test with actual screen readers">
+    Don't rely solely on browser dev tools. Test with:
+    - VoiceOver (macOS)
+    - NVDA (Windows, free)
+    - JAWS (Windows, commercial)
+  </Accordion>
+
+  <Accordion title="Maintain focus order">
+    Ensure animated text doesn't break keyboard navigation:
+
+    ```tsx
+    <SplitText>
+      <nav>
+        <a href="/home">Home</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+      </nav>
+    </SplitText>
+    ```
+
+    Links remain focusable and maintain natural tab order.
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+### Issue: aria-label Not Announced
+
+**Cause**: Element doesn't support `aria-label`
+
+**Solution**: Griffo automatically uses sr-only copy for these elements. No action needed.
+
+### Issue: Nested Links Lose Clickability
+
+**Cause**: CSS transforms or z-index issues
+
+**Solution**: Ensure split spans don't interfere with pointer events:
+
+```css
+.split-word {
+  pointer-events: none;
+}
+
+.split-word a {
+  pointer-events: auto;
+}
+```
+
+### Issue: Screen Reader Reads Twice
+
+**Cause**: Custom `aria-label` conflicts with Griffo's label
+
+**Solution**: Remove custom `aria-label` before splitting:
+
+```tsx
+<SplitText>
+  <h1>{/* Griffo sets aria-label automatically */}
+    Heading Text
+  </h1>
+</SplitText>
+```
+
+## WCAG Compliance
+
+Griffo helps meet these WCAG 2.1 success criteria:
+
+<CardGroup cols={2}>
+  <Card title="1.3.1 Info and Relationships" icon="sitemap">
+    Preserves semantic structure via aria-label and sr-only copies
+  </Card>
+  <Card title="2.1.1 Keyboard" icon="keyboard">
+    Maintains keyboard focus order for nested interactive elements
+  </Card>
+  <Card title="2.4.4 Link Purpose" icon="link">
+    Preserves link context in both visual and screen reader output
+  </Card>
+  <Card title="4.1.2 Name, Role, Value" icon="check">
+    Maintains accessible names for all interactive elements
+  </Card>
+</CardGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="React" icon="react" href="/guides/react">
+    React component guide
+  </Card>
+  <Card title="Motion" icon="wand-magic-sparkles" href="/guides/motion">
+    Motion animations
+  </Card>
+  <Card title="Vanilla JS" icon="js" href="/guides/vanilla-js">
+    Core API reference
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimization tips
+  </Card>
+</CardGroup>

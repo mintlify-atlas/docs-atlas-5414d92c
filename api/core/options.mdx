@@ -1,0 +1,342 @@
+---
+title: "SplitTextOptions"
+description: "Configuration options for the splitText function"
+---
+
+## Overview
+
+The `SplitTextOptions` interface defines all configuration options for the `splitText` function.
+
+## Type Definition
+
+```typescript
+interface SplitTextOptions {
+  type?: "chars" | "words" | "lines" | "chars,words" | "words,lines" | "chars,lines" | "chars,words,lines";
+  charClass?: string;
+  wordClass?: string;
+  lineClass?: string;
+  mask?: "lines" | "words" | "chars";
+  autoSplit?: boolean;
+  resplitDebounceMs?: number;
+  onResplit?: (result: Omit<SplitTextResult, "revert" | "dispose">) => void;
+  onSplit?: (result: {
+    chars: HTMLSpanElement[];
+    words: HTMLSpanElement[];
+    lines: HTMLSpanElement[];
+  }) => AnimationCallbackReturn;
+  revertOnComplete?: boolean;
+  propIndex?: boolean;
+  disableKerning?: boolean;
+  initialStyles?: {
+    chars?: InitialStyle;
+    words?: InitialStyle;
+    lines?: InitialStyle;
+  };
+  initialClasses?: {
+    chars?: string;
+    words?: string;
+    lines?: string;
+  };
+}
+```
+
+## Options
+
+### type
+
+<ParamField path="type" type="string" default="chars,words,lines">
+  Determines which elements to create. Can be one or more of: `"chars"`, `"words"`, `"lines"`, or combinations like `"chars,words"`.
+</ParamField>
+
+**Examples:**
+```typescript
+// Characters only
+splitText(element, { type: "chars" });
+
+// Words and lines
+splitText(element, { type: "words,lines" });
+
+// All three (default)
+splitText(element, { type: "chars,words,lines" });
+```
+
+### charClass
+
+<ParamField path="charClass" type="string" default="split-char">
+  CSS class name applied to character span elements.
+</ParamField>
+
+### wordClass
+
+<ParamField path="wordClass" type="string" default="split-word">
+  CSS class name applied to word span elements.
+</ParamField>
+
+### lineClass
+
+<ParamField path="lineClass" type="string" default="split-line">
+  CSS class name applied to line span elements.
+</ParamField>
+
+### mask
+
+<ParamField path="mask" type="'lines' | 'words' | 'chars'">
+  Apply overflow mask wrapper to elements for reveal animations. Wraps each element in a container with `overflow: clip`.
+</ParamField>
+
+**Example:**
+```typescript
+// Mask lines for slide-in animation
+splitText(element, {
+  type: "lines",
+  mask: "lines",
+});
+
+// Each line is now wrapped:
+// <span style="overflow: clip">
+//   <span class="split-line">Line content</span>
+// </span>
+```
+
+### autoSplit
+
+<ParamField path="autoSplit" type="boolean" default={false}>
+  Automatically re-split text when the container resizes. Observes the parent element's width.
+</ParamField>
+
+**Requirements:**
+- Element must have a parent element
+- Parent must be rendered and have a measurable width
+
+**Example:**
+```typescript
+splitText(element, {
+  autoSplit: true,
+  onResplit: ({ lines }) => {
+    console.log("Text was re-split due to resize");
+  },
+});
+```
+
+### resplitDebounceMs
+
+<ParamField path="resplitDebounceMs" type="number" default={100}>
+  Debounce delay in milliseconds for `autoSplit` re-splitting. Set to `0` to disable debouncing.
+</ParamField>
+
+**Example:**
+```typescript
+// Re-split immediately on resize (no debounce)
+splitText(element, {
+  autoSplit: true,
+  resplitDebounceMs: 0,
+});
+
+// Wait 300ms after last resize
+splitText(element, {
+  autoSplit: true,
+  resplitDebounceMs: 300,
+});
+```
+
+### onResplit
+
+<ParamField path="onResplit" type="(result) => void">
+  Callback function fired when `autoSplit` replaces the split output elements. Receives the new split elements (without `revert` and `dispose` functions).
+</ParamField>
+
+**Example:**
+```typescript
+splitText(element, {
+  autoSplit: true,
+  onResplit: ({ chars, words, lines }) => {
+    // Re-animate after resize
+    animate(lines, { opacity: [0, 1] });
+  },
+});
+```
+
+### onSplit
+
+<ParamField path="onSplit" type="(result) => AnimationCallbackReturn">
+  Callback function fired after text is split. Receives the split elements. Can return an animation for use with `revertOnComplete`.
+</ParamField>
+
+**Return Types:**
+- Motion animation objects (with `.finished` Promise)
+- GSAP tweens/timelines (with `.then()` method)
+- Raw Promises
+- Arrays of any of the above
+- `void` (no animation)
+
+**Example:**
+```typescript
+// With Motion
+splitText(element, {
+  onSplit: ({ words }) => animate(words, { opacity: [0, 1] }),
+  revertOnComplete: true,
+});
+
+// With GSAP
+splitText(element, {
+  onSplit: ({ chars }) => gsap.to(chars, { opacity: 1 }),
+  revertOnComplete: true,
+});
+
+// With multiple animations
+splitText(element, {
+  onSplit: ({ chars, words }) => [
+    animate(chars, { opacity: [0, 1] }),
+    animate(words, { y: [20, 0] }),
+  ],
+  revertOnComplete: true,
+});
+```
+
+### revertOnComplete
+
+<ParamField path="revertOnComplete" type="boolean" default={false}>
+  Automatically revert the split when the `onSplit` animation completes. Requires `onSplit` to return an animation.
+</ParamField>
+
+**Example:**
+```typescript
+splitText(element, {
+  onSplit: ({ words }) => animate(words, { opacity: [0, 1] }),
+  revertOnComplete: true,
+});
+// Text automatically reverts after animation completes
+```
+
+### propIndex
+
+<ParamField path="propIndex" type="boolean" default={false}>
+  Add CSS custom properties with indices to each element: `--char-index`, `--word-index`, `--line-index`.
+</ParamField>
+
+**Example:**
+```typescript
+splitText(element, {
+  type: "chars",
+  propIndex: true,
+});
+
+// Each char element will have:
+// <span class="split-char" style="--char-index: 0">H</span>
+// <span class="split-char" style="--char-index: 1">e</span>
+// ...
+```
+
+**CSS Usage:**
+```css
+.split-char {
+  animation-delay: calc(var(--char-index) * 0.05s);
+}
+```
+
+### disableKerning
+
+<ParamField path="disableKerning" type="boolean" default={false}>
+  Skip kerning compensation (no margin adjustments applied). Kerning is naturally lost when splitting into inline-block spans. Use this if you prefer no compensation over imperfect compensation.
+</ParamField>
+
+<Note>
+  Kerning compensation works well in most browsers but may have minor visual differences in Safari. Set `disableKerning: true` if you prefer no compensation.
+</Note>
+
+### initialStyles
+
+<ParamField path="initialStyles" type="object">
+  Apply initial inline styles to elements after split (and after kerning compensation). Can be a static style object or a function that receives `(element, index)`.
+</ParamField>
+
+**Type Definition:**
+```typescript
+type InitialStyleValue = {
+  [property: string]: string | number | undefined;
+};
+
+type InitialStyleFn = (element: HTMLElement, index: number) => InitialStyleValue;
+
+type InitialStyle = InitialStyleValue | InitialStyleFn;
+
+initialStyles?: {
+  chars?: InitialStyle;
+  words?: InitialStyle;
+  lines?: InitialStyle;
+};
+```
+
+**Examples:**
+```typescript
+// Static styles
+splitText(element, {
+  type: "chars",
+  initialStyles: {
+    chars: {
+      opacity: 0,
+      transform: "translateY(20px)",
+    },
+  },
+});
+
+// Dynamic styles based on index
+splitText(element, {
+  type: "chars",
+  initialStyles: {
+    chars: (el, index) => ({
+      opacity: 0,
+      transitionDelay: `${index * 0.05}s`,
+    }),
+  },
+});
+
+// CSS custom properties
+splitText(element, {
+  type: "words",
+  initialStyles: {
+    words: {
+      "--word-color": "red",
+      color: "var(--word-color)",
+    },
+  },
+});
+```
+
+<Warning>
+  Protected styles (`display`, `position`, `textDecoration`, `fontVariantLigatures`) cannot be overridden as they are required for internal layout.
+</Warning>
+
+### initialClasses
+
+<ParamField path="initialClasses" type="object">
+  Apply initial classes to elements after split (and after kerning compensation). Supports space-separated class names.
+</ParamField>
+
+**Type Definition:**
+```typescript
+initialClasses?: {
+  chars?: string;
+  words?: string;
+  lines?: string;
+};
+```
+
+**Example:**
+```typescript
+splitText(element, {
+  type: "chars,words",
+  initialClasses: {
+    chars: "hidden animated",
+    words: "word-wrapper",
+  },
+});
+
+// Each char element will have:
+// <span class="split-char hidden animated">...</span>
+```
+
+## See Also
+
+- [splitText](/api/core/split-text) - Main function documentation
+- [Return Value](/api/core/return-value) - Return value documentation

@@ -1,0 +1,533 @@
+---
+title: Motion
+description: Deep dive into <SplitText> from griffo/motion for declarative animations with variants and Motion primitives
+---
+
+## Overview
+
+The Motion `<SplitText>` component combines Griffo's text splitting with Motion's declarative animation system. Use variants, `whileInView`, `whileHover`, and all Motion animation props.
+
+```tsx
+import { SplitText } from "griffo/motion";
+```
+
+<Info>
+  **Bundle size:** 13.78 kB (minified + brotli)
+</Info>
+
+## Basic Usage
+
+```tsx
+import { SplitText } from "griffo/motion";
+import { stagger } from "motion";
+
+<SplitText
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.65, delay: stagger(0.04) }}
+  options={{ type: "words" }}
+>
+  <h1>Hello World</h1>
+</SplitText>;
+```
+
+## Per-Type Targets
+
+Animate different split types independently:
+
+```tsx
+<SplitText
+  initial={{
+    chars: { opacity: 0, y: 10 },
+    words: { scale: 0.9 },
+  }}
+  animate={{
+    chars: { opacity: 1, y: 0 },
+    words: { scale: 1 },
+  }}
+  options={{ type: "chars,words" }}
+>
+  <h1>Different animations per type</h1>
+</SplitText>
+```
+
+### Supported Keys
+
+<CodeGroup>
+
+```tsx chars
+initial={{ chars: { opacity: 0 } }}
+animate={{ chars: { opacity: 1 } }}
+```
+
+```tsx words
+initial={{ words: { scale: 0.8 } }}
+animate={{ words: { scale: 1 } }}
+```
+
+```tsx lines
+initial={{ lines: { x: -50 } }}
+animate={{ lines: { x: 0 } }}
+```
+
+```tsx wrapper
+initial={{ wrapper: { opacity: 0 } }}
+animate={{ wrapper: { opacity: 1 } }}
+```
+
+</CodeGroup>
+
+## Function Variants
+
+Access element index, line/word context, and custom data:
+
+```tsx
+<SplitText
+  initial={{
+    chars: ({ index, count, lineIndex }) => ({
+      opacity: 0,
+      y: 10,
+      transition: {
+        delay: lineIndex * 0.15 + (index / count) * 0.3,
+      },
+    }),
+  }}
+  animate={{ chars: { opacity: 1, y: 0 } }}
+  options={{ type: "chars,lines" }}
+>
+  <p>Per-line staggered reveal</p>
+</SplitText>
+```
+
+### VariantInfo
+
+<ParamField path="index" type="number">
+  Relative index within nearest parent (line > word > global)
+</ParamField>
+
+<ParamField path="count" type="number">
+  Total elements in that parent group
+</ParamField>
+
+<ParamField path="globalIndex" type="number">
+  Absolute index across all elements of this type
+</ParamField>
+
+<ParamField path="globalCount" type="number">
+  Total elements of this type across entire split
+</ParamField>
+
+<ParamField path="lineIndex" type="number">
+  Parent line index (0 if lines not split)
+</ParamField>
+
+<ParamField path="wordIndex" type="number">
+  Parent word index (0 if words not split)
+</ParamField>
+
+<ParamField path="custom" type="TCustom | undefined">
+  User custom data passed to `<SplitText>`
+</ParamField>
+
+## Named Variants
+
+Define reusable variant states:
+
+```tsx
+<SplitText
+  variants={{
+    hidden: { chars: { opacity: 0, y: 10 } },
+    visible: {
+      chars: ({ lineIndex }) => ({
+        opacity: 1,
+        y: 0,
+        transition: {
+          delay: stagger(0.02, { startDelay: lineIndex * 0.15 }),
+        },
+      }),
+    },
+  }}
+  initial="hidden"
+  animate="visible"
+  options={{ type: "chars,lines", mask: "lines" }}
+>
+  <p>Per-line staggered reveal</p>
+</SplitText>
+```
+
+## whileInView
+
+Animate when scrolled into view:
+
+```tsx
+<SplitText
+  initial={{ opacity: 0, y: 20 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.65, delay: stagger(0.05) }}
+  viewport={{ amount: 0.5, once: true }}
+  options={{ type: "words" }}
+>
+  <h2>Scroll-triggered animation</h2>
+</SplitText>
+```
+
+### Viewport Options
+
+```tsx
+<SplitText
+  whileInView={{ opacity: 1 }}
+  viewport={{
+    once: true, // Only trigger once
+    amount: 0.5, // 50% visibility required
+    margin: "0px 0px -100px 0px", // IntersectionObserver rootMargin
+  }}
+  options={{ type: "chars" }}
+>
+  <p>Trigger once at 50%</p>
+</SplitText>
+```
+
+## whileHover
+
+Animate on hover:
+
+```tsx
+<SplitText
+  animate={{ chars: { opacity: 1, y: 0 } }}
+  whileHover={{
+    chars: ({ index, count }) => ({
+      y: -5,
+      transition: {
+        delay: (index / count) * 0.1,
+      },
+    }),
+  }}
+  options={{ type: "chars" }}
+>
+  <h3>Hover to bounce</h3>
+</SplitText>
+```
+
+### Hover Callbacks
+
+```tsx
+<SplitText
+  whileHover={{ chars: { scale: 1.2 } }}
+  onHoverStart={() => console.log("Hover started")}
+  onHoverEnd={() => console.log("Hover ended")}
+  options={{ type: "chars" }}
+>
+  <button>Hover me</button>
+</SplitText>
+```
+
+## whileTap & whileFocus
+
+```tsx
+<SplitText
+  animate={{ chars: { opacity: 1 } }}
+  whileTap={{ chars: { scale: 0.95 } }}
+  whileFocus={{ chars: { color: "#ff0080" } }}
+  options={{ type: "chars" }}
+>
+  <button>Click or focus me</button>
+</SplitText>
+```
+
+## whileScroll
+
+Drive animation progress with scroll position:
+
+```tsx
+<SplitText
+  whileScroll={{
+    chars: ({ index, count }) => ({
+      opacity: [0, 1, 1, 0],
+      scale: [0.8, 1, 1, 0.8],
+    }),
+  }}
+  scroll={{
+    offset: ["start end", "end start"],
+  }}
+  options={{ type: "chars" }}
+>
+  <h1>Parallax text</h1>
+</SplitText>
+```
+
+### Scroll Options
+
+<ParamField path="scroll.offset" type="MotionScrollOffset" default={["start end", "end start"]}>
+  Scroll range for animation progress
+</ParamField>
+
+<ParamField path="scroll.axis" type="'x' | 'y'" default="y">
+  Scroll axis to track
+</ParamField>
+
+<ParamField path="scroll.container" type="React.RefObject<Element>">
+  Custom scroll container (default: nearest scrollable ancestor)
+</ParamField>
+
+## Custom Data
+
+Pass custom data to function variants:
+
+```tsx
+<SplitText
+  custom={{ color: "#ff0080", duration: 0.8 }}
+  initial={{
+    chars: ({ custom }) => ({
+      opacity: 0,
+      color: custom?.color,
+    }),
+  }}
+  animate={{
+    chars: ({ custom }) => ({
+      opacity: 1,
+      transition: { duration: custom?.duration },
+    }),
+  }}
+  options={{ type: "chars" }}
+>
+  <h1>Custom variant data</h1>
+</SplitText>
+```
+
+## Delay Scope
+
+Control how delay functions resolve indices:
+
+```tsx
+// Global scope (default)
+<SplitText
+  delayScope="global"
+  initial={{
+    chars: ({ globalIndex, globalCount }) => ({
+      opacity: 0,
+      transition: { delay: globalIndex * 0.02 },
+    }),
+  }}
+  animate={{ chars: { opacity: 1 } }}
+  options={{ type: "chars,lines" }}
+>
+  <p>Delays based on global char index</p>
+</SplitText>
+
+// Local scope (per-line)
+<SplitText
+  delayScope="local"
+  initial={{
+    chars: ({ index, count }) => ({
+      opacity: 0,
+      transition: { delay: index * 0.02 }, // Resets per line
+    }),
+  }}
+  animate={{ chars: { opacity: 1 } }}
+  options={{ type: "chars,lines" }}
+>
+  <p>Delays reset per line</p>
+</SplitText>
+```
+
+## AnimatePresence Exit
+
+```tsx
+import { AnimatePresence } from "motion/react";
+import { SplitText } from "griffo/motion";
+
+function App() {
+  const [show, setShow] = useState(true);
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <SplitText
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{
+            chars: ({ index, count }) => ({
+              opacity: 0,
+              y: -20,
+              transition: {
+                delay: (index / count) * 0.05,
+              },
+            }),
+          }}
+          options={{ type: "chars" }}
+        >
+          <h1>Goodbye</h1>
+        </SplitText>
+      )}
+    </AnimatePresence>
+  );
+}
+```
+
+## Masking for Reveals
+
+```tsx
+<SplitText
+  initial={{ chars: { y: "100%" } }}
+  animate={{ chars: { y: "0%" } }}
+  transition={{ duration: 0.65, delay: stagger(0.03) }}
+  options={{ type: "chars", mask: "chars" }}
+>
+  <h1>Slide up reveal</h1>
+</SplitText>
+```
+
+<Info>
+  `mask: "chars"` wraps each character in an overflow container for clean slide-in/out effects.
+</Info>
+
+## Auto-resplit on Resize
+
+```tsx
+<SplitText
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  options={{ type: "words,lines" }}
+  autoSplit
+  animateOnResplit // Re-run initial->animate on resize
+>
+  <p>Responsive animation</p>
+</SplitText>
+```
+
+## Reduced Motion
+
+```tsx
+<SplitText
+  reducedMotion="user" // Respects prefers-reduced-motion
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  options={{ type: "words" }}
+>
+  <h1>Accessible animation</h1>
+</SplitText>
+```
+
+<ParamField path="reducedMotion" type="'user' | 'always' | 'never'" default="user">
+  - `"user"`: Disable animations if `prefers-reduced-motion` is set
+  - `"always"`: Always disable animations
+  - `"never"`: Always enable animations
+</ParamField>
+
+## Complete Example
+
+```tsx
+import { SplitText } from "griffo/motion";
+import { stagger } from "motion";
+
+export default function Hero() {
+  return (
+    <SplitText
+      variants={{
+        hidden: {
+          chars: { opacity: 0, y: 20 },
+          wrapper: { opacity: 0 },
+        },
+        visible: {
+          wrapper: { opacity: 1 },
+          chars: ({ lineIndex }) => ({
+            opacity: 1,
+            y: 0,
+            transition: {
+              delay: stagger(0.03, { startDelay: lineIndex * 0.15 }),
+              duration: 0.65,
+            },
+          }),
+        },
+      }}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ amount: 0.5, once: true }}
+      options={{ type: "chars,lines", mask: "lines" }}
+    >
+      <h1>Beautiful scroll-triggered reveal with per-line stagger</h1>
+    </SplitText>
+  );
+}
+```
+
+## Props Reference
+
+Inherits all props from [React SplitText](/guides/react#props-reference), plus:
+
+<ParamField path="variants" type="Record<string, VariantDefinition>">
+  Named variant definitions
+</ParamField>
+
+<ParamField path="initial" type="string | VariantDefinition | false">
+  Initial variant (applied instantly on mount)
+</ParamField>
+
+<ParamField path="animate" type="string | VariantDefinition">
+  Variant to animate to after mount
+</ParamField>
+
+<ParamField path="whileInView" type="string | VariantDefinition">
+  Variant to animate to when entering viewport
+</ParamField>
+
+<ParamField path="whileOutOfView" type="string | VariantDefinition">
+  Variant to animate to when leaving viewport
+</ParamField>
+
+<ParamField path="whileScroll" type="string | VariantDefinition">
+  Variant driven by scroll progress
+</ParamField>
+
+<ParamField path="whileHover" type="string | VariantDefinition">
+  Variant to animate to on hover
+</ParamField>
+
+<ParamField path="whileTap" type="string | VariantDefinition">
+  Variant to animate to on tap/click
+</ParamField>
+
+<ParamField path="whileFocus" type="string | VariantDefinition">
+  Variant to animate to on focus
+</ParamField>
+
+<ParamField path="exit" type="string | VariantDefinition | false">
+  Exit variant for AnimatePresence
+</ParamField>
+
+<ParamField path="transition" type="AnimationOptions">
+  Global transition options
+</ParamField>
+
+<ParamField path="delayScope" type="'global' | 'local'" default="global">
+  How delay functions resolve indices
+</ParamField>
+
+<ParamField path="custom" type="TCustom">
+  Custom data passed to function variants
+</ParamField>
+
+<ParamField path="reducedMotion" type="'user' | 'always' | 'never'" default="user">
+  Reduced motion handling
+</ParamField>
+
+<ParamField path="animateOnResplit" type="boolean" default={false}>
+  Re-run initial->animate when autoSplit triggers
+</ParamField>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="React" icon="react" href="/guides/react">
+    Callback-based React component
+  </Card>
+  <Card title="Morph" icon="wand-magic-sparkles" href="/guides/morph">
+    Text morphing transitions
+  </Card>
+  <Card title="Kerning" icon="text" href="/guides/kerning">
+    How kerning compensation works
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimization tips
+  </Card>
+</CardGroup>

@@ -1,0 +1,257 @@
+---
+title: Installation
+description: Add Griffo to your project with npm, yarn, or pnpm
+---
+
+## Package Manager
+
+Install Griffo using your preferred package manager:
+
+<CodeGroup>
+```bash npm
+npm install griffo
+```
+
+```bash yarn
+yarn add griffo
+```
+
+```bash pnpm
+pnpm add griffo
+```
+</CodeGroup>
+
+## Peer Dependencies
+
+Griffo's core has zero dependencies, but certain entry points have **optional** peer dependencies:
+
+<AccordionGroup>
+  <Accordion title="griffo (Core)" icon="circle-check" defaultOpen>
+    No dependencies required. Works with vanilla JavaScript.
+    
+    ```bash
+    npm install griffo
+    ```
+  </Accordion>
+
+  <Accordion title="griffo/react" icon="react">
+    Requires React 18 or higher (optional).
+    
+    ```bash
+    npm install griffo react
+    ```
+    
+    <Note>React is marked as an optional peer dependency. The package will install without it, but you'll need React to use `griffo/react`.</Note>
+  </Accordion>
+
+  <Accordion title="griffo/motion" icon="film">
+    Requires React 18+ and Motion 11+ (both optional).
+    
+    ```bash
+    npm install griffo react motion
+    ```
+    
+    <Note>Motion and React are both optional peer dependencies. You'll need both to use the declarative Motion integration.</Note>
+  </Accordion>
+
+  <Accordion title="griffo/morph" icon="wand-magic-sparkles">
+    Requires React 18+ and Motion 11+ (both optional).
+    
+    ```bash
+    npm install griffo react motion
+    ```
+  </Accordion>
+
+  <Accordion title="griffo/helpers" icon="wrench">
+    No dependencies required. Utility functions work standalone.
+    
+    ```bash
+    npm install griffo
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Setup Checklist
+
+<Steps>
+  <Step title="Install the package">
+    Run the installation command for your package manager:
+    
+    ```bash
+    npm install griffo
+    ```
+  </Step>
+
+  <Step title="Install peer dependencies (if needed)">
+    If using React or Motion integrations, install the required packages:
+    
+    ```bash
+    npm install react motion
+    ```
+    
+    <Tip>You can skip this step if you're only using vanilla JavaScript (`griffo` core)</Tip>
+  </Step>
+
+  <Step title="Import Griffo in your code">
+    Choose the entry point that matches your use case:
+    
+    <CodeGroup>
+    ```ts Vanilla
+    import { splitText } from "griffo";
+    ```
+    
+    ```tsx React
+    import { SplitText } from "griffo/react";
+    ```
+    
+    ```tsx Motion
+    import { SplitText } from "griffo/motion";
+    ```
+    
+    ```tsx Morph
+    import { MorphText } from "griffo/morph";
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Wait for fonts to load (vanilla only)">
+    When using vanilla JavaScript, wrap your `splitText()` calls in `document.fonts.ready` to ensure accurate measurements:
+    
+    ```ts
+    import { splitText } from "griffo";
+    import { animate, stagger } from "motion";
+    
+    document.fonts.ready.then(() => {
+      const { words } = splitText(element, { type: "words", mask: "words" });
+      animate(words, { y: ["100%", "0%"] }, { delay: stagger(0.1) });
+    });
+    ```
+    
+    <Note>React and Motion components wait for fonts automatically via the `waitForFonts` prop (enabled by default)</Note>
+  </Step>
+</Steps>
+
+## Font Loading Considerations
+
+<Warning>
+  Always wait for fonts to load before splitting text to ensure accurate kerning measurements.
+</Warning>
+
+### Why Font Loading Matters
+
+Griffo measures character spacing to calculate kerning compensation. If fonts aren't loaded yet, these measurements will be inaccurate, leading to incorrect spacing after the split.
+
+### Vanilla JavaScript
+
+Wrap `splitText()` calls in `document.fonts.ready`:
+
+```ts
+import { splitText } from "griffo";
+
+document.fonts.ready.then(() => {
+  const { chars, words, lines } = splitText(element, {
+    type: "chars,words,lines"
+  });
+  
+  // Now it's safe to animate
+});
+```
+
+### React & Motion Components
+
+Font waiting is automatic via the `waitForFonts` prop (defaults to `true`):
+
+```tsx
+import { SplitText } from "griffo/react";
+
+<SplitText
+  waitForFonts={true} // enabled by default
+  options={{ type: "words" }}
+  onSplit={({ words }) => {
+    // Fonts are guaranteed to be loaded here
+  }}
+>
+  <h1>Text with custom fonts</h1>
+</SplitText>
+```
+
+<Tip>
+  You can disable font waiting by setting `waitForFonts={false}` if you're certain fonts are already loaded or you're using system fonts.
+</Tip>
+
+## Verify Installation
+
+Create a simple test to verify Griffo is working:
+
+<CodeGroup>
+```ts Vanilla
+import { splitText } from "griffo";
+
+const element = document.querySelector("h1");
+const { chars } = splitText(element, { type: "chars" });
+
+console.log(`Split into ${chars.length} characters`);
+```
+
+```tsx React
+import { SplitText } from "griffo/react";
+
+function App() {
+  return (
+    <SplitText
+      options={{ type: "chars" }}
+      onSplit={({ chars }) => {
+        console.log(`Split into ${chars.length} characters`);
+      }}
+    >
+      <h1>Hello World</h1>
+    </SplitText>
+  );
+}
+```
+</CodeGroup>
+
+If you see the log message with the character count, Griffo is installed correctly!
+
+## TypeScript Support
+
+Griffo includes full TypeScript definitions. No additional `@types` packages needed:
+
+```ts
+import { splitText, SplitTextOptions, SplitTextResult } from "griffo";
+
+const options: SplitTextOptions = {
+  type: "chars,words",
+  mask: "words",
+  autoSplit: true,
+};
+
+const result: SplitTextResult = splitText(element, options);
+```
+
+## Bundle Size
+
+Griffo is designed to be lightweight with tree-shakeable entry points:
+
+| Entry Point | Size (min + brotli) |
+|-------------|--------------------|
+| `griffo` | 7.11 kB |
+| `griffo/react` | 8.23 kB |
+| `griffo/motion` | 13.78 kB |
+| `griffo/morph` | 7.95 kB |
+| `griffo/helpers` | ~1 kB |
+
+<Tip>
+  Import only what you need. The core `griffo` package is the smallest and works with any framework.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Learn the basics with hands-on examples
+  </Card>
+  <Card title="Core API" icon="code" href="/api/core/split-text">
+    Explore the complete API reference
+  </Card>
+</CardGroup>

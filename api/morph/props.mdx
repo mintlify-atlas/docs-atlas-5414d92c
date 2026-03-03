@@ -1,0 +1,252 @@
+---
+title: MorphText props
+description: Complete props reference for the MorphText component
+---
+
+Complete reference for all props available on the `<MorphText>` component from `griffo/morph`.
+
+## Content
+
+<ParamField path="children" type="string" required>
+  The text content to display. When this changes, the component will morph between the old and new text.
+
+  ```tsx
+  <MorphText>{dynamicText}</MorphText>
+  ```
+</ParamField>
+
+## Split options
+
+<ParamField path="splitBy" type="'chars' | 'words'" default="'chars'">
+  How to split the text into tokens for morphing.
+
+  - `"chars"` - Split into individual characters
+  - `"words"` - Split into words (separated by spaces)
+
+  ```tsx
+  <MorphText splitBy="words">{text}</MorphText>
+  ```
+</ParamField>
+
+## Animation props
+
+<ParamField path="initial" type="MotionInitialProp">
+  Animation state for entering tokens. Can be a static object or a function that receives variant info.
+
+  **Static:**
+  ```tsx
+  <MorphText initial={{ opacity: 0, y: -20 }}>
+    {text}
+  </MorphText>
+  ```
+
+  **Function:**
+  ```tsx
+  <MorphText
+    initial={({ index, count }) => ({
+      opacity: 0,
+      y: index % 2 === 0 ? -20 : 20,
+    })}
+  >
+    {text}
+  </MorphText>
+  ```
+
+  **MorphVariantInfo:**
+  - `index` - Index of this token among all animated tokens
+  - `count` - Total number of animated tokens
+</ParamField>
+
+<ParamField path="animate" type="MotionAnimateProp">
+  Target animation state for all visible tokens.
+
+  **Static:**
+  ```tsx
+  <MorphText animate={{ opacity: 1, y: 0 }}>
+    {text}
+  </MorphText>
+  ```
+
+  **Function:**
+  ```tsx
+  <MorphText
+    animate={({ index }) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: index * 0.02 },
+    })}
+  >
+    {text}
+  </MorphText>
+  ```
+</ParamField>
+
+<ParamField path="exit" type="MotionExitProp">
+  Animation state for exiting tokens.
+
+  **Static:**
+  ```tsx
+  <MorphText exit={{ opacity: 0, scale: 0.5 }}>
+    {text}
+  </MorphText>
+  ```
+
+  **Function:**
+  ```tsx
+  <MorphText
+    exit={({ index, count }) => ({
+      opacity: 0,
+      x: index <= count / 2 ? -50 : 50,
+    })}
+  >
+    {text}
+  </MorphText>
+  ```
+</ParamField>
+
+<ParamField path="transition" type="AnimationOptions">
+  Default transition options for all animations.
+
+  ```tsx
+  <MorphText
+    transition={{
+      type: "spring",
+      bounce: 0.3,
+      duration: 0.6
+    }}
+  >
+    {text}
+  </MorphText>
+  ```
+
+  Supports all Motion transition options including springs, tweens, and easing functions.
+</ParamField>
+
+<ParamField path="stagger" type="number">
+  Delay between each token's animation in seconds.
+
+  ```tsx
+  <MorphText
+    stagger={0.05}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+  >
+    {text}
+  </MorphText>
+  ```
+
+  This is a convenience prop that applies stagger to entering tokens. For more control, use function variants with custom transition delays.
+</ParamField>
+
+<ParamField path="animateInitial" type="boolean" default={false}>
+  Whether to animate on initial mount.
+
+  ```tsx
+  <MorphText
+    animateInitial={true}
+    initial={{ opacity: 0, scale: 0.8 }}
+    animate={{ opacity: 1, scale: 1 }}
+  >
+    {text}
+  </MorphText>
+  ```
+
+  When `false` (default), the first render will skip the initial animation and render directly in the `animate` state.
+</ParamField>
+
+## Styling
+
+<ParamField path="as" type="keyof HTMLElementTagNameMap" default="'div'">
+  The HTML element to render as the wrapper.
+
+  ```tsx
+  <MorphText as="span">{text}</MorphText>
+  <MorphText as="h1">{text}</MorphText>
+  ```
+</ParamField>
+
+<ParamField path="className" type="string">
+  CSS class name for the wrapper element.
+
+  ```tsx
+  <MorphText className="text-lg font-bold">{text}</MorphText>
+  ```
+</ParamField>
+
+<ParamField path="style" type="CSSProperties">
+  Inline styles for the wrapper element.
+
+  ```tsx
+  <MorphText style={{ fontSize: 24, fontWeight: "bold" }}>
+    {text}
+  </MorphText>
+  ```
+</ParamField>
+
+## Behavior
+
+<ParamField path="waitForFonts" type="boolean" default={true}>
+  Whether to wait for fonts to load before rendering.
+
+  ```tsx
+  <MorphText waitForFonts={false}>{text}</MorphText>
+  ```
+
+  Set to `false` if you're using system fonts or have already loaded fonts.
+</ParamField>
+
+<ParamField path="reducedMotion" type="'user' | 'always' | 'never'" default="'user'">
+  How to handle prefers-reduced-motion.
+
+  - `"user"` - Respect system preference
+  - `"always"` - Always reduce motion
+  - `"never"` - Never reduce motion
+
+  ```tsx
+  <MorphText reducedMotion="never">{text}</MorphText>
+  ```
+</ParamField>
+
+## Callbacks
+
+<ParamField path="onMorphComplete" type="() => void">
+  Called when the morph animation completes.
+
+  ```tsx
+  <MorphText
+    onMorphComplete={() => {
+      console.log("Morph finished");
+      // Trigger next action
+    }}
+  >
+    {text}
+  </MorphText>
+  ```
+</ParamField>
+
+## Other props
+
+`<MorphText>` also accepts all other HTML attributes and Motion props not listed above (excluding controlled props like `children`, `initial`, `animate`, `exit`).
+
+## Type definitions
+
+```typescript
+interface MorphVariantInfo {
+  /** Index of this element among all animated elements */
+  index: number;
+  /** Total number of animated elements */
+  count: number;
+}
+
+type MotionInitialProp =
+  | HTMLMotionProps<"div">["initial"]
+  | ((info: MorphVariantInfo) => HTMLMotionProps<"div">["initial"]);
+
+type MotionAnimateProp =
+  | HTMLMotionProps<"div">["animate"]
+  | ((info: MorphVariantInfo) => HTMLMotionProps<"div">["animate"]);
+
+type MotionExitProp =
+  | HTMLMotionProps<"div">["exit"]
+  | ((info: MorphVariantInfo) => HTMLMotionProps<"div">["exit"]);
+```

@@ -1,0 +1,188 @@
+---
+title: MorphText component
+description: Animated text morphing with stable token identity
+---
+
+The `<MorphText>` component from `griffo/morph` provides smooth text morphing animations where matching tokens animate between positions, new tokens enter, and removed tokens exit.
+
+## Import
+
+```tsx
+import { MorphText } from "griffo/morph";
+```
+
+## Basic usage
+
+```tsx
+import { MorphText } from "griffo/morph";
+import { useState } from "react";
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <MorphText>{count.toString()}</MorphText>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
+  );
+}
+```
+
+## How it works
+
+`<MorphText>` uses stable token identity to create smooth morphing animations:
+
+1. **Matching tokens** - Tokens that exist in both old and new text animate to their new positions
+2. **Entering tokens** - New tokens that didn't exist before play the `initial` → `animate` transition
+3. **Exiting tokens** - Removed tokens play the `animate` → `exit` transition before unmounting
+
+Tokens are matched based on their content and position, creating natural-looking morphs even when text changes significantly.
+
+## Split modes
+
+### Split by characters (default)
+
+```tsx
+<MorphText splitBy="chars">
+  {text}
+</MorphText>
+```
+
+Splits text into individual characters. Best for:
+- Short text changes
+- Character-by-character reveals
+- Scramble effects
+
+### Split by words
+
+```tsx
+<MorphText splitBy="words">
+  {text}
+</MorphText>
+```
+
+Splits text into words. Best for:
+- Longer text
+- Word-based animations
+- Status messages
+
+## Animation states
+
+<Accordion title="Initial state">
+Applied to entering tokens before they animate in:
+
+```tsx
+<MorphText initial={{ opacity: 0, y: -20 }}>
+  {text}
+</MorphText>
+```
+</Accordion>
+
+<Accordion title="Animate state">
+The target state for all visible tokens:
+
+```tsx
+<MorphText animate={{ opacity: 1, y: 0 }}>
+  {text}
+</MorphText>
+```
+</Accordion>
+
+<Accordion title="Exit state">
+Applied to tokens that are being removed:
+
+```tsx
+<MorphText exit={{ opacity: 0, y: 20 }}>
+  {text}
+</MorphText>
+```
+</Accordion>
+
+## Transition options
+
+```tsx
+<MorphText
+  transition={{
+    type: "spring",
+    bounce: 0.2,
+    duration: 0.5
+  }}
+>
+  {text}
+</MorphText>
+```
+
+## Examples
+
+### Loading states
+
+```tsx
+const states = ["Loading", "Loading.", "Loading..", "Loading..."];
+
+<MorphText
+  splitBy="chars"
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  exit={{ opacity: 0 }}
+>
+  {states[index]}
+</MorphText>
+```
+
+### Status messages
+
+```tsx
+<MorphText
+  splitBy="words"
+  initial={({ index, count }) => ({
+    opacity: 0,
+    x: index <= count / 2 ? -75 : 75,
+  })}
+  animate={{ opacity: 1, x: 0 }}
+  exit={({ index, count }) => ({
+    opacity: 0,
+    x: index <= count / 2 ? 75 : -75,
+  })}
+>
+  {statusText}
+</MorphText>
+```
+
+### Counter with stagger
+
+```tsx
+import { stagger } from "motion";
+
+<MorphText
+  splitBy="chars"
+  initial={{ opacity: 0, y: -20 }}
+  animate={{ opacity: 1, y: 0 }}
+  stagger={0.05}
+>
+  {count.toString()}
+</MorphText>
+```
+
+## Completion callback
+
+```tsx
+<MorphText
+  onMorphComplete={() => {
+    console.log("Morph animation finished");
+  }}
+>
+  {text}
+</MorphText>
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Props reference" icon="list" href="/api/morph/props">
+    Complete MorphText props documentation
+  </Card>
+  <Card title="Morph guide" icon="book" href="/guides/morph">
+    In-depth guide with examples
+  </Card>
+</CardGroup>

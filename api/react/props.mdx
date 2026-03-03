@@ -1,0 +1,333 @@
+---
+title: "Props"
+description: "Complete reference for SplitText component props"
+---
+
+All props for the `<SplitText>` component, extracted from `SplitTextProps` interface.
+
+## Core Props
+
+<ParamField path="children" type="ReactElement" required>
+  The single child element to split. Must be a valid React element (like `<h1>`, `<p>`, etc.).
+
+  ```tsx
+  <SplitText>
+    <h1>Your Text Here</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="options" type="SplitTextOptions">
+  Configuration options for text splitting behavior.
+
+  ```tsx
+  <SplitText
+    options={{
+      type: "chars,words",
+      charClass: "char",
+      wordClass: "word",
+      mask: "chars",
+      propIndex: true
+    }}
+  >
+    <h1>Animated Text</h1>
+  </SplitText>
+  ```
+
+  Available options:
+  - `type` - Split type: `"chars"`, `"words"`, `"lines"`, or combinations like `"chars,words,lines"`
+  - `charClass` - CSS class for character spans
+  - `wordClass` - CSS class for word spans
+  - `lineClass` - CSS class for line spans
+  - `mask` - Apply overflow mask wrapper: `"lines"`, `"words"`, or `"chars"`
+  - `resplitDebounceMs` - Debounce delay for resize-triggered resplits (default: `100`ms, `0` disables)
+  - `propIndex` - Add `data-index` attribute to split elements
+  - `disableKerning` - Skip kerning compensation (no margin adjustments)
+</ParamField>
+
+## Callback Props
+
+<ParamField path="onSplit" type="(result: SplitTextElements) => AnimationCallbackReturn">
+  Called after text is split. Return an animation or promise to enable automatic revert with `revertOnComplete`.
+
+  ```tsx
+  <SplitText
+    onSplit={({ chars, words, lines, revert }) => {
+      // Animate split elements
+      return animate(chars, { opacity: [0, 1] });
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+  ```
+
+  The callback receives:
+  - `chars` - Array of character spans
+  - `words` - Array of word spans
+  - `lines` - Array of line spans
+  - `revert` - Function to manually revert to original HTML
+</ParamField>
+
+<ParamField path="onResplit" type="(result: SplitTextElements) => void">
+  Called when `autoSplit` triggers a full re-split (e.g., on window resize). Use this to re-apply animations to new elements.
+
+  ```tsx
+  <SplitText
+    autoSplit={true}
+    onResplit={({ chars }) => {
+      // Re-animate new elements after resize
+      animate(chars, { opacity: [0, 1] });
+    }}
+  >
+    <h1>Responsive Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="onViewportEnter" type="(result: SplitTextElements) => AnimationCallbackReturn">
+  Called when element enters viewport (requires `viewport` prop or any viewport-related prop). Return an animation for `revertOnComplete` support.
+
+  ```tsx
+  <SplitText
+    viewport={{ once: true, amount: 0.5 }}
+    onViewportEnter={({ words }) => {
+      return animate(
+        words,
+        { opacity: [0, 1], y: [20, 0] },
+        { delay: stagger(0.05) }
+      );
+    }}
+  >
+    <h1>Scroll Animation</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="onViewportLeave" type="(result: SplitTextElements) => AnimationCallbackReturn">
+  Called when element leaves viewport.
+
+  ```tsx
+  <SplitText
+    onViewportLeave={({ words }) => {
+      animate(words, { opacity: 0 });
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="onRevert" type="() => void">
+  Called when split text is reverted to original HTML (manual or automatic via `revertOnComplete`).
+
+  ```tsx
+  <SplitText
+    revertOnComplete={true}
+    onRevert={() => {
+      console.log("Text reverted to original");
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+## Viewport Props
+
+<ParamField path="viewport" type="ViewportOptions">
+  Viewport observer options matching Motion's viewport API. Configures IntersectionObserver behavior.
+
+  ```tsx
+  <SplitText
+    viewport={{
+      once: true,          // Only trigger once
+      amount: 0.5,         // 50% visibility required
+      margin: "-100px",    // Root margin
+      root: containerRef   // Custom root element
+    }}
+    onViewportEnter={({ chars }) => animate(chars, { opacity: 1 })}
+  >
+    <h1>Scroll Text</h1>
+  </SplitText>
+  ```
+
+  Available options:
+  - `once` - Only trigger once (default: `false`)
+  - `amount` - Visibility threshold: `number` (0-1), `"some"`, or `"all"` (default: `0`)
+  - `leave` - Visibility required to consider element out of view (default: `0`)
+  - `margin` - Root margin for IntersectionObserver (default: `"0px"`)
+  - `root` - Root element ref for IntersectionObserver
+</ParamField>
+
+<ParamField path="resetOnViewportLeave" type="boolean" default="false">
+  Re-apply `initialStyles` and `initialClasses` when element leaves viewport. Useful for scroll-triggered animations that should reset.
+
+  ```tsx
+  <SplitText
+    initialStyles={{ chars: { opacity: 0, transform: "translateY(20px)" } }}
+    resetOnViewportLeave={true}
+    onViewportEnter={({ chars }) => {
+      return animate(chars, { opacity: 1, y: 0 });
+    }}
+  >
+    <h1>Repeatable Animation</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+## Styling Props
+
+<ParamField path="initialStyles" type="InitialStyles">
+  Apply initial inline styles to split elements after splitting and kerning compensation. Can be a static style object or a function receiving `(element, index)`.
+
+  ```tsx
+  // Static styles
+  <SplitText
+    initialStyles={{
+      chars: { opacity: 0, transform: "translateY(20px)" },
+      words: { display: "inline-block" }
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+
+  // Dynamic styles with function
+  <SplitText
+    initialStyles={{
+      chars: (el, i) => ({
+        opacity: 0,
+        transform: `translateY(${i * 5}px)`
+      })
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="initialClasses" type="InitialClasses">
+  Apply initial CSS classes to split elements after splitting. Classes are added via `classList.add()` and support space-separated class names.
+
+  ```tsx
+  <SplitText
+    initialClasses={{
+      chars: "char-hidden",
+      words: "word-base word-animated"
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+
+  // With function
+  <SplitText
+    initialClasses={{
+      chars: (el, i) => i % 2 === 0 ? "even" : "odd"
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+## Behavior Props
+
+<ParamField path="autoSplit" type="boolean" default="false">
+  Enable automatic re-splitting on window resize. Triggers `onResplit` callback with new elements.
+
+  ```tsx
+  <SplitText
+    autoSplit={true}
+    options={{ resplitDebounceMs: 200 }}
+    onResplit={({ chars }) => {
+      // Re-animate after resize
+      animate(chars, { opacity: [0, 1] });
+    }}
+  >
+    <h1>Responsive Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="revertOnComplete" type="boolean" default="false">
+  Automatically revert to original HTML after animation promise resolves. Requires `onSplit` or `onViewportEnter` to return an animation or promise.
+
+  ```tsx
+  <SplitText
+    revertOnComplete={true}
+    onSplit={({ chars }) => {
+      // Animation will auto-revert when complete
+      return animate(chars, { opacity: [0, 1] });
+    }}
+  >
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="waitForFonts" type="boolean" default="true">
+  Wait for `document.fonts.ready` before splitting. Set to `false` to split immediately (may cause FOUC).
+
+  ```tsx
+  <SplitText waitForFonts={false}>
+    <h1>Splits Immediately</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+## Wrapper Props
+
+<ParamField path="as" type="keyof HTMLElementTagNameMap" default="div">
+  The HTML element type for the wrapper container.
+
+  ```tsx
+  <SplitText as="section">
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="className" type="string">
+  CSS class name for the wrapper element.
+
+  ```tsx
+  <SplitText className="hero-text">
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="style" type="React.CSSProperties">
+  Additional inline styles for the wrapper element (merged with internal styles).
+
+  ```tsx
+  <SplitText style={{ padding: "2rem", background: "#000" }}>
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="ref" type="React.Ref<HTMLElement>">
+  Forward ref to the wrapper element.
+
+  ```tsx
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  <SplitText ref={wrapperRef}>
+    <h1>Text</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+## HTML Attributes
+
+All standard HTML attributes (excluding controlled keys) can be passed to the wrapper element:
+
+```tsx
+<SplitText
+  id="hero-text"
+  data-section="hero"
+  aria-label="Animated heading"
+>
+  <h1>Text</h1>
+</SplitText>
+```

@@ -1,0 +1,392 @@
+---
+title: Vanilla JavaScript
+description: Deep dive into using splitText() from griffo/core for animation with Motion, GSAP, or any framework
+---
+
+## Overview
+
+The core `splitText()` function provides framework-agnostic text splitting with automatic kerning compensation. Use it with Motion, GSAP, CSS animations, or any animation library.
+
+```ts
+import { splitText } from "griffo";
+```
+
+<Info>
+  **Bundle size:** 7.11 kB (minified + brotli)
+</Info>
+
+## Basic Usage
+
+<CodeGroup>
+
+```ts Motion
+import { splitText } from "griffo";
+import { animate, stagger } from "motion";
+
+const { chars } = splitText(document.querySelector("h1"), { type: "chars" });
+animate(chars, { opacity: [0, 1], y: [20, 0] }, { delay: stagger(0.02) });
+```
+
+```ts GSAP
+import { splitText } from "griffo";
+import gsap from "gsap";
+
+const { words } = splitText(element, { type: "words" });
+gsap.from(words, {
+  opacity: 0,
+  y: 20,
+  stagger: 0.05,
+  duration: 0.65,
+});
+```
+
+```ts CSS
+import { splitText } from "griffo";
+
+const { chars } = splitText(element, { type: "chars" });
+chars.forEach((char, i) => {
+  char.style.animation = `fadeIn 0.5s ${i * 0.02}s both`;
+});
+```
+
+</CodeGroup>
+
+## Split Types
+
+Combine multiple split types with comma-separated values:
+
+<CodeGroup>
+
+```ts Characters Only
+const { chars } = splitText(element, { type: "chars" });
+// Returns: { chars: HTMLSpanElement[], words: [], lines: [] }
+```
+
+```ts Words Only
+const { words } = splitText(element, { type: "words" });
+// Returns: { chars: [], words: HTMLSpanElement[], lines: [] }
+```
+
+```ts Lines Only
+const { lines } = splitText(element, { type: "lines" });
+// Returns: { chars: [], words: [], lines: HTMLSpanElement[] }
+```
+
+```ts Combined
+const { chars, words, lines } = splitText(element, {
+  type: "chars,words,lines",
+});
+// All arrays populated with spans
+```
+
+</CodeGroup>
+
+<Note>
+  When splitting by chars, word wrappers are created internally for proper spacing even if `type: "chars"` is specified.
+</Note>
+
+## Masking for Reveal Animations
+
+Wrap elements in overflow containers for clip-based reveals:
+
+<CodeGroup>
+
+```ts Line Masking
+const { lines } = splitText(element, {
+  type: "lines",
+  mask: "lines",
+});
+
+animate(lines, { y: ["100%", "0%"] }, { delay: stagger(0.1) });
+```
+
+```ts Word Masking
+const { words } = splitText(element, {
+  type: "words",
+  mask: "words",
+});
+
+animate(words, { y: ["100%", "0%"] }, { delay: stagger(0.05) });
+```
+
+```ts Char Masking
+const { chars } = splitText(element, {
+  type: "chars",
+  mask: "chars",
+});
+
+animate(chars, { y: ["100%", "0%"] }, { delay: stagger(0.02) });
+```
+
+</CodeGroup>
+
+<Info>
+  Masking wraps each element in a `<span>` with `overflow: clip` for clean slide-in/out animations.
+</Info>
+
+## Auto Re-split on Resize
+
+Automatically re-split text when the container resizes:
+
+```ts
+const result = splitText(element, {
+  type: "words,lines",
+  autoSplit: true,
+  onResplit: ({ words, lines }) => {
+    // Re-animate after resize
+    animate(words, { opacity: [0, 1] }, { delay: stagger(0.03) });
+  },
+});
+```
+
+<Warning>
+  `autoSplit` requires the element to have a parent in the DOM. It observes the parent's width and triggers a full re-split when changed.
+</Warning>
+
+### Debouncing
+
+Control the debounce delay for resize events:
+
+```ts
+splitText(element, {
+  autoSplit: true,
+  resplitDebounceMs: 200, // Default: 100ms
+  onResplit: ({ words }) => {
+    console.log("Re-split triggered");
+  },
+});
+```
+
+## Revert and Cleanup
+
+Restore the original HTML and cleanup observers:
+
+```ts
+const { chars, revert } = splitText(element, { type: "chars" });
+
+animate(chars, { opacity: [0, 1] }).finished.then(() => {
+  revert(); // Restores original HTML
+});
+```
+
+### Auto-revert on Complete
+
+```ts
+splitText(element, {
+  type: "words",
+  revertOnComplete: true,
+  onSplit: ({ words }) => {
+    return animate(words, { opacity: [0, 1] }); // Auto-reverts when finished
+  },
+});
+```
+
+<Info>
+  `revertOnComplete` works with Motion animations (`.finished`), GSAP timelines (`.then()`), and raw Promises.
+</Info>
+
+## Custom Classes and Indexes
+
+```ts
+const { chars, words, lines } = splitText(element, {
+  type: "chars,words,lines",
+  charClass: "my-char",
+  wordClass: "my-word",
+  lineClass: "my-line",
+  propIndex: true, // Adds CSS custom properties
+});
+```
+
+### CSS Custom Properties
+
+When `propIndex: true`, each element gets:
+
+```css
+/* Character span */
+.my-char {
+  --char-index: 0;
+}
+
+/* Word span */
+.my-word {
+  --word-index: 0;
+}
+
+/* Line span */
+.my-line {
+  --line-index: 0;
+}
+```
+
+Use in CSS animations:
+
+```css
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.my-char {
+  animation: fadeIn 0.5s calc(var(--char-index) * 0.02s) both;
+}
+```
+
+## Initial Styles
+
+Apply styles immediately after split:
+
+```ts
+splitText(element, {
+  type: "words",
+  initialStyles: {
+    words: {
+      opacity: 0,
+      transform: "translateY(20px)",
+    },
+  },
+  onSplit: ({ words }) => {
+    animate(words, { opacity: 1, y: 0 }, { delay: stagger(0.05) });
+  },
+});
+```
+
+### Function-based Styles
+
+```ts
+splitText(element, {
+  type: "chars",
+  initialStyles: {
+    chars: (el, index) => ({
+      opacity: 0,
+      transform: `translateY(${20 + index * 5}px)`,
+    }),
+  },
+});
+```
+
+## Font Loading
+
+<Warning>
+  **Critical:** Always wait for fonts before splitting to ensure accurate measurements.
+</Warning>
+
+```ts
+// Recommended: Wait for fonts
+document.fonts.ready.then(() => {
+  const { words } = splitText(element, { type: "words" });
+  animate(words, { opacity: [0, 1] });
+});
+```
+
+<Note>
+  React and Motion components handle this automatically via `waitForFonts` prop (enabled by default).
+</Note>
+
+## Advanced: Lifecycle Callbacks
+
+```ts
+const result = splitText(element, {
+  type: "chars,words,lines",
+  onSplit: ({ chars, words, lines }) => {
+    // Called immediately after split
+    console.log(`Split ${chars.length} chars into ${lines.length} lines`);
+
+    // Return animation for revertOnComplete support
+    return animate(chars, { opacity: [0, 1] });
+  },
+  autoSplit: true,
+  onResplit: ({ chars, lines }) => {
+    // Called when autoSplit triggers
+    console.log(`Re-split into ${lines.length} lines`);
+  },
+  revertOnComplete: true,
+});
+```
+
+## Full API Reference
+
+<ParamField path="element" type="HTMLElement" required>
+  The HTML element containing text to split
+</ParamField>
+
+<ParamField path="options.type" type="string" default="chars,words,lines">
+  Split types: `"chars"`, `"words"`, `"lines"`, or comma-separated combinations
+</ParamField>
+
+<ParamField path="options.mask" type="'lines' | 'words' | 'chars'">
+  Wrap elements in overflow containers for reveal animations
+</ParamField>
+
+<ParamField path="options.autoSplit" type="boolean" default={false}>
+  Automatically re-split on container resize
+</ParamField>
+
+<ParamField path="options.resplitDebounceMs" type="number" default={100}>
+  Debounce delay for autoSplit in milliseconds
+</ParamField>
+
+<ParamField path="options.revertOnComplete" type="boolean" default={false}>
+  Auto-revert when `onSplit` animation completes
+</ParamField>
+
+<ParamField path="options.propIndex" type="boolean" default={false}>
+  Add CSS custom properties (`--char-index`, `--word-index`, `--line-index`)
+</ParamField>
+
+<ParamField path="options.disableKerning" type="boolean" default={false}>
+  Skip kerning compensation (see [Kerning Guide](/guides/kerning))
+</ParamField>
+
+<ParamField path="options.onSplit" type="function">
+  Callback after split. Return animation for `revertOnComplete`.
+</ParamField>
+
+<ParamField path="options.onResplit" type="function">
+  Callback when `autoSplit` triggers
+</ParamField>
+
+<ParamField path="options.initialStyles" type="object">
+  Apply styles after split. Supports static objects or functions.
+</ParamField>
+
+<ParamField path="options.charClass" type="string" default="split-char">
+  Class name for character spans
+</ParamField>
+
+<ParamField path="options.wordClass" type="string" default="split-word">
+  Class name for word spans
+</ParamField>
+
+<ParamField path="options.lineClass" type="string" default="split-line">
+  Class name for line spans
+</ParamField>
+
+### Return Value
+
+```ts
+interface SplitTextResult {
+  chars: HTMLSpanElement[];
+  words: HTMLSpanElement[];
+  lines: HTMLSpanElement[];
+  revert: () => void;
+}
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="React" icon="react" href="/guides/react">
+    Use SplitText with React lifecycle
+  </Card>
+  <Card title="Motion" icon="wand-magic-sparkles" href="/guides/motion">
+    Declarative animations with Motion
+  </Card>
+  <Card title="Kerning" icon="text" href="/guides/kerning">
+    How kerning compensation works
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimization tips
+  </Card>
+</CardGroup>

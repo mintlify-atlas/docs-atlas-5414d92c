@@ -1,0 +1,438 @@
+---
+title: Performance
+description: Bundle sizes, tree-shaking, optimization strategies, and best practices for Griffo
+---
+
+## Bundle Sizes
+
+All sizes are **minified + brotli** compressed:
+
+<CardGroup cols={2}>
+  <Card title="griffo (Core)" icon="js">
+    **7.11 kB**
+    
+    Vanilla JS, works with any framework
+  </Card>
+  <Card title="griffo/react" icon="react">
+    **8.23 kB**
+    
+    React wrapper with lifecycle management
+  </Card>
+  <Card title="griffo/motion" icon="wand-magic-sparkles">
+    **13.78 kB**
+    
+    Motion variant system (excludes Motion itself)
+  </Card>
+  <Card title="griffo/morph" icon="shuffle">
+    **7.95 kB**
+    
+    Standalone MorphText component
+  </Card>
+</CardGroup>
+
+<Info>
+  Sizes measured with brotli compression (recommended for production). With gzip, add ~15-20%.
+</Info>
+
+## Tree-Shaking
+
+Griffo is fully tree-shakeable when using modern bundlers (Vite, Rollup, Webpack 5+):
+
+```ts
+// Only imports core splitText (~7 kB)
+import { splitText } from "griffo";
+
+// Only imports React wrapper (~8 kB)
+import { SplitText } from "griffo/react";
+
+// Only imports Motion variant system (~14 kB)
+import { SplitText } from "griffo/motion";
+
+// Only imports MorphText (~8 kB)
+import { MorphText } from "griffo/morph";
+```
+
+<Warning>
+  Avoid importing from package root if you only need specific exports:
+  
+  ```ts
+  // ❌ May pull in more code than needed
+  import { splitText, SplitText } from "griffo";
+  
+  // ✅ Import from specific entry points
+  import { splitText } from "griffo";
+  import { SplitText } from "griffo/react";
+  ```
+</Warning>
+
+## Font Loading
+
+### Wait for Fonts
+
+Always wait for fonts before splitting to ensure accurate measurements:
+
+```ts
+// Vanilla JS
+document.fonts.ready.then(() => {
+  const { words } = splitText(element, { type: "words" });
+});
+```
+
+```tsx
+// React (default behavior)
+<SplitText waitForFonts={true}>
+  <h1>Text</h1>
+</SplitText>
+```
+
+### Preload Critical Fonts
+
+Preload fonts used in split text to avoid FOUT (Flash of Unstyled Text):
+
+```html
+<link
+  rel="preload"
+  href="/fonts/inter-var.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
+```
+
+### Font Display Strategy
+
+```css
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter-var.woff2') format('woff2');
+  font-display: swap; /* or 'block' for critical text */
+}
+```
+
+<AccordionGroup>
+  <Accordion title="font-display: swap">
+    **Best for**: Body text, non-critical content
+    
+    Renders fallback immediately, swaps when font loads. May cause layout shift.
+  </Accordion>
+  
+  <Accordion title="font-display: block">
+    **Best for**: Hero text, logos, headings
+    
+    Waits for font (up to 3s), ensures no layout shift. Use with `waitForFonts`.
+  </Accordion>
+  
+  <Accordion title="font-display: optional">
+    **Best for**: Non-essential text
+    
+    Uses font if already cached, otherwise uses fallback. Avoids layout shift.
+  </Accordion>
+</AccordionGroup>
+
+## Auto-split Performance
+
+### Debouncing
+
+Control how often re-splits occur on resize:
+
+```ts
+splitText(element, {
+  autoSplit: true,
+  resplitDebounceMs: 150, // Default: 100ms
+});
+```
+
+<Info>
+  Increase `resplitDebounceMs` if you notice performance issues during window resize.
+</Info>
+
+### Disable When Hidden
+
+Disconnect observers when elements aren't visible:
+
+```ts
+const result = splitText(element, { autoSplit: true });
+
+// Cleanup when component unmounts or hides
+result.revert();
+```
+
+In React:
+
+```tsx
+function MyComponent({ isVisible }) {
+  return isVisible ? (
+    <SplitText autoSplit>
+      <h1>Text</h1>
+    </SplitText>
+  ) : null;
+}
+```
+
+## Kerning Measurement
+
+### Isolation (Default)
+
+By default, kerning is measured in an isolated container to avoid layout thrashing:
+
+```ts
+splitText(element, {
+  type: "chars",
+  // isolateKerningMeasurement: true (default)
+});
+```
+
+This creates a hidden `<div>` for measurements, avoiding forced reflows in your main layout.
+
+### Disable Kerning
+
+For better performance when kerning isn't critical:
+
+```ts
+splitText(element, {
+  type: "chars",
+  disableKerning: true, // Skips all kerning measurement
+});
+```
+
+<Warning>
+  Disabling kerning may cause visible spacing differences, especially with fonts that have aggressive kerning (e.g., display fonts).
+</Warning>
+
+## Memory Management
+
+### Revert When Done
+
+Always revert splits when animations complete:
+
+```ts
+const { chars, revert } = splitText(element, { type: "chars" });
+
+animate(chars, { opacity: [0, 1] }).finished.then(() => {
+  revert(); // Cleans up observers, restores original HTML
+});
+```
+
+### Auto-revert
+
+```ts
+splitText(element, {
+  type: "words",
+  revertOnComplete: true,
+  onSplit: ({ words }) => animate(words, { opacity: [0, 1] }),
+});
+```
+
+### React Cleanup
+
+React components handle cleanup automatically on unmount:
+
+```tsx
+<SplitText>
+  <h1>Automatically cleaned up</h1>
+</SplitText>
+```
+
+## Animation Performance
+
+### Use Transform Properties
+
+Animate `transform` and `opacity` for best performance (GPU-accelerated):
+
+```ts
+// ✅ Good: GPU-accelerated
+animate(chars, {
+  opacity: [0, 1],
+  transform: ["translateY(20px)", "translateY(0)"],
+});
+
+// ❌ Avoid: Triggers layout
+animate(chars, {
+  marginTop: [20, 0],
+  height: [0, "auto"],
+});
+```
+
+### Will-change
+
+Add `will-change` for complex animations:
+
+```ts
+splitText(element, {
+  type: "chars",
+  initialStyles: {
+    chars: {
+      willChange: "transform, opacity",
+    },
+  },
+});
+```
+
+<Warning>
+  Remove `will-change` after animation completes to avoid memory overhead:
+  
+  ```ts
+  animate(chars, { opacity: 1 }).finished.then(() => {
+    chars.forEach(char => char.style.willChange = "");
+  });
+  ```
+</Warning>
+
+### Stagger Limits
+
+Limit the number of simultaneously animating elements:
+
+```ts
+// ❌ 1000 chars animating at once
+const { chars } = splitText(element, { type: "chars" });
+animate(chars, { opacity: [0, 1] }, { delay: stagger(0.01) });
+
+// ✅ Split by words (fewer elements)
+const { words } = splitText(element, { type: "words" });
+animate(words, { opacity: [0, 1] }, { delay: stagger(0.05) });
+```
+
+## Reducing DOM Complexity
+
+### Only Split What You Animate
+
+```ts
+// ❌ Splits everything
+const result = splitText(element, { type: "chars,words,lines" });
+
+// ✅ Only split what you need
+const { words } = splitText(element, { type: "words" });
+```
+
+### Avoid Deep Nesting
+
+Simplify HTML structure before splitting:
+
+```html
+<!-- ❌ Deep nesting -->
+<div>
+  <div>
+    <div>
+      <h1>Text</h1>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ Flat structure -->
+<h1>Text</h1>
+```
+
+## Measuring Performance
+
+### Lighthouse Audits
+
+1. Run Lighthouse in Chrome DevTools
+2. Check "Performance" score
+3. Look for:
+   - Total Blocking Time (TBT)
+   - Cumulative Layout Shift (CLS)
+   - Largest Contentful Paint (LCP)
+
+### Chrome DevTools Performance Tab
+
+1. Open DevTools → Performance
+2. Record while page loads
+3. Look for:
+   - Long tasks (>50ms)
+   - Layout thrashing
+   - Excessive reflows
+
+### Custom Timing
+
+```ts
+performance.mark("split-start");
+const result = splitText(element, { type: "chars" });
+performance.mark("split-end");
+performance.measure("split-duration", "split-start", "split-end");
+
+const [measure] = performance.getEntriesByName("split-duration");
+console.log(`Split took ${measure.duration.toFixed(2)}ms`);
+```
+
+## Production Checklist
+
+<Steps>
+  <Step title="Enable compression">
+    Use brotli or gzip compression for static assets
+  </Step>
+  <Step title="Preload critical fonts">
+    Add `<link rel="preload">` for fonts used in split text
+  </Step>
+  <Step title="Use tree-shaking">
+    Import from specific entry points (`griffo`, `griffo/react`, etc.)
+  </Step>
+  <Step title="Wait for fonts">
+    Enable `waitForFonts` (default in React/Motion)
+  </Step>
+  <Step title="Limit split types">
+    Only split by types you're actually animating
+  </Step>
+  <Step title="Revert after animations">
+    Clean up with `revert()` or `revertOnComplete`
+  </Step>
+  <Step title="Test on devices">
+    Profile on low-end mobile devices, not just desktop
+  </Step>
+</Steps>
+
+## Bundle Analysis
+
+### Vite
+
+```bash
+npm run build -- --mode analyze
+```
+
+### Webpack Bundle Analyzer
+
+```bash
+npm install --save-dev webpack-bundle-analyzer
+```
+
+```js
+// webpack.config.js
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+
+module.exports = {
+  plugins: [
+    new BundleAnalyzerPlugin()
+  ]
+};
+```
+
+### Next.js
+
+```bash
+npm install @next/bundle-analyzer
+```
+
+```js
+// next.config.js
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
+module.exports = withBundleAnalyzer({});
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Vanilla JS" icon="js" href="/guides/vanilla-js">
+    Core API reference
+  </Card>
+  <Card title="React" icon="react" href="/guides/react">
+    React lifecycle management
+  </Card>
+  <Card title="Kerning" icon="text" href="/guides/kerning">
+    How kerning works
+  </Card>
+  <Card title="Accessibility" icon="universal-access" href="/guides/accessibility">
+    Screen reader support
+  </Card>
+</CardGroup>

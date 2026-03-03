@@ -1,0 +1,463 @@
+---
+title: Variants
+description: Named variant system with static and dynamic animation targets
+---
+
+Variants provide a powerful way to define named animation states that can be referenced throughout your component. The Motion `<SplitText>` component supports both static variants (fixed animation values) and function variants (computed per element).
+
+## Basic Variants
+
+Define named animation states and reference them by name:
+
+```tsx
+<SplitText
+  variants={{
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  }}
+  initial="hidden"
+  animate="visible"
+  transition={{ duration: 0.6, delay: stagger(0.05) }}
+  options={{ type: "words" }}
+>
+  <h1>Hello World</h1>
+</SplitText>
+```
+
+## Variant Definitions
+
+Each variant in the `variants` prop can be:
+
+1. **Flat target** - Applied to the most granular split type
+2. **Function** - Returns animation properties based on element info
+3. **Per-type object** - Specific targets for chars, words, lines, wrapper
+
+### Flat Target Variant
+
+```tsx
+variants={{
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: { opacity: 1, scale: 1 }
+}}
+```
+
+### Function Variant
+
+```tsx
+variants={{
+  visible: ({ index, count }) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: (index / count) * 0.5
+    }
+  })
+}}
+```
+
+### Per-Type Variant
+
+```tsx
+variants={{
+  visible: {
+    chars: { opacity: 1, y: 0 },
+    lines: { opacity: 1 },
+    wrapper: { scale: 1 }
+  }
+}}
+```
+
+## Function Variants
+
+Function variants receive a `VariantInfo` object with rich positional data:
+
+```typescript
+interface VariantInfo<TCustom = unknown> {
+  // Relative index within nearest split parent
+  index: number;
+  // Total elements in that parent group
+  count: number;
+  // Absolute index across all elements of this type
+  globalIndex: number;
+  // Total elements of this type across entire split
+  globalCount: number;
+  // Parent line index (0 if lines not split)
+  lineIndex: number;
+  // Parent word index (0 if words not split)
+  wordIndex: number;
+  // User custom data passed to SplitText
+  custom: TCustom | undefined;
+  // AnimatePresence presence state
+  isPresent: boolean;
+}
+```
+
+### Using VariantInfo
+
+```tsx
+<SplitText
+  variants={{
+    hidden: { chars: { opacity: 0, y: 10 } },
+    visible: {
+      chars: ({ lineIndex, index, count }) => ({
+        opacity: 1,
+        y: 0,
+        transition: {
+          // Stagger chars within each line
+          delay: stagger(0.02, {
+            // Delay each line progressively
+            startDelay: lineIndex * 0.15
+          })
+        }
+      })
+    }
+  }}
+  initial="hidden"
+  animate="visible"
+  options={{ type: "chars,lines", mask: "lines" }}
+>
+  <p>Per-line staggered reveal</p>
+</SplitText>
+```
+
+## Index vs GlobalIndex
+
+The `delayScope` prop controls which indices function variants receive:
+
+### Global Scope (default)
+
+Uses `globalIndex` and `globalCount` - position across all elements:
+
+```tsx
+<SplitText
+  animate={{
+    chars: ({ globalIndex, globalCount }) => ({
+      opacity: 1,
+      transition: {
+        // Continuous delay across all characters
+        delay: (globalIndex / globalCount) * 1.0
+      }
+    })
+  }}
+  delayScope="global"
+  options={{ type: "chars,lines" }}
+>
+  <p>First line chars: 0, 1, 2, 3...</p>
+  <p>Second line chars: 4, 5, 6, 7...</p>
+</SplitText>
+```
+
+### Local Scope
+
+Uses `index` and `count` - position within parent group (line for chars, etc.):
+
+```tsx
+<SplitText
+  animate={{
+    chars: ({ index, count }) => ({
+      opacity: 1,
+      transition: {
+        // Delay resets for each line
+        delay: (index / count) * 0.5
+      }
+    })
+  }}
+  delayScope="local"
+  options={{ type: "chars,lines" }}
+>
+  <p>First line chars: 0, 1, 2, 3...</p>
+  <p>Second line chars: 0, 1, 2, 3... (resets)</p>
+</SplitText>
+```
+
+## Per-Type Variant Targets
+
+Per-type variants let you animate chars, words, lines, and wrapper independently:
+
+```tsx
+<SplitText
+  variants={{
+    hidden: {
+      chars: { opacity: 0, y: 20 },
+      lines: { opacity: 0, y: 10 },
+      wrapper: { opacity: 0 }
+    },
+    visible: {
+      chars: { opacity: 1, y: 0 },
+      lines: { opacity: 1, y: 0 },
+      wrapper: { opacity: 1 }
+    }
+  }}
+  initial="hidden"
+  animate="visible"
+  options={{ type: "chars,lines" }}
+>
+  <h1>Independent animation control</h1>
+</SplitText>
+```
+
+### Mixing Static and Function Targets
+
+Combine static and function targets within a single variant:
+
+```tsx
+<SplitText
+  variants={{
+    visible: {
+      // Function for chars (dynamic delay)
+      chars: ({ lineIndex, index }) => ({
+        opacity: 1,
+        y: 0,
+        transition: {
+          delay: stagger(0.03, { startDelay: lineIndex * 0.2 })
+        }
+      }),
+      // Static for wrapper
+      wrapper: { opacity: 1 }
+    }
+  }}
+  initial={{
+    chars: { opacity: 0, y: 15 },
+    wrapper: { opacity: 0 }
+  }}
+  animate="visible"
+  options={{ type: "chars,lines" }}
+>
+  <h2>Mixed targets</h2>
+</SplitText>
+```
+
+## Custom Data
+
+Pass custom data to function variants via the `custom` prop:
+
+```tsx
+interface CustomData {
+  colors: string[];
+  duration: number;
+}
+
+<SplitText
+  custom={{ colors: ["#ff6b6b", "#4ecdc4", "#45b7d1"], duration: 0.8 }}
+  variants={{
+    colorful: {
+      chars: ({ index, custom }) => {
+        const colorIndex = index % custom.colors.length;
+        return {
+          color: custom.colors[colorIndex],
+          transition: { duration: custom.duration }
+        };
+      }
+    }
+  }}
+  animate="colorful"
+  options={{ type: "chars" }}
+>
+  <span>Rainbow text</span>
+</SplitText>
+```
+
+## Variant Transitions
+
+Transitions can be defined at multiple levels with specific precedence:
+
+1. Per-element function return (highest priority)
+2. Per-variant transition
+3. Global `transition` prop (lowest priority)
+
+```tsx
+<SplitText
+  variants={{
+    fast: {
+      chars: { opacity: 1 },
+      // Variant-level transition
+      transition: { duration: 0.3 }
+    },
+    slow: {
+      chars: ({ index }) => ({
+        opacity: 1,
+        // Element-level transition (takes priority)
+        transition: {
+          duration: 0.8,
+          delay: index * 0.1
+        }
+      })
+    }
+  }}
+  animate="slow"
+  // Global transition (lowest priority)
+  transition={{ duration: 0.5 }}
+  options={{ type: "chars" }}
+>
+  <p>Text</p>
+</SplitText>
+```
+
+## Complex Examples
+
+### Wave Effect
+
+```tsx
+<SplitText
+  variants={{
+    wave: {
+      chars: ({ index, count }) => ({
+        y: Math.sin((index / count) * Math.PI * 2) * 20,
+        transition: {
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }
+      })
+    }
+  }}
+  animate="wave"
+  options={{ type: "chars" }}
+>
+  <h1>Wavy text</h1>
+</SplitText>
+```
+
+### Cascading Lines
+
+```tsx
+<SplitText
+  variants={{
+    hidden: {
+      lines: { opacity: 0, x: -50 }
+    },
+    visible: {
+      lines: ({ globalIndex }) => ({
+        opacity: 1,
+        x: 0,
+        transition: {
+          duration: 0.6,
+          delay: globalIndex * 0.2,
+          ease: [0.25, 0.46, 0.45, 0.94]
+        }
+      })
+    }
+  }}
+  initial="hidden"
+  whileInView="visible"
+  viewport={{ amount: 0.3, once: true }}
+  options={{ type: "lines" }}
+>
+  <p>
+    First line appears first.
+    Second line follows.
+    Third line appears last.
+  </p>
+</SplitText>
+```
+
+### Alternating Direction
+
+```tsx
+<SplitText
+  variants={{
+    hidden: {
+      words: ({ index }) => ({
+        opacity: 0,
+        x: index % 2 === 0 ? -30 : 30
+      })
+    },
+    visible: {
+      words: ({ index, count }) => ({
+        opacity: 1,
+        x: 0,
+        transition: {
+          duration: 0.5,
+          delay: (index / count) * 0.8
+        }
+      })
+    }
+  }}
+  initial="hidden"
+  animate="visible"
+  options={{ type: "words" }}
+>
+  <h1>Words slide in from alternating sides</h1>
+</SplitText>
+```
+
+### Character Reveal with Line Masks
+
+```tsx
+<SplitText
+  variants={{
+    hidden: {
+      chars: { y: "100%", opacity: 0 },
+      lines: { opacity: 1 }
+    },
+    visible: {
+      chars: ({ lineIndex, index }) => ({
+        y: "0%",
+        opacity: 1,
+        transition: {
+          duration: 0.6,
+          delay: stagger(0.02, {
+            startDelay: lineIndex * 0.1
+          }),
+          ease: [0.22, 1, 0.36, 1]
+        }
+      })
+    }
+  }}
+  initial="hidden"
+  animate="visible"
+  options={{ type: "chars,lines", mask: "lines" }}
+>
+  <h1>Masked line-by-line reveal</h1>
+</SplitText>
+```
+
+## Inline Variants
+
+You can pass variant definitions directly to animation props without using the `variants` object:
+
+```tsx
+// No variants object needed
+<SplitText
+  initial={{ opacity: 0, y: 20 }}
+  animate={{
+    chars: ({ index, count }) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: (index / count) * 0.5
+      }
+    })
+  }}
+  options={{ type: "chars" }}
+>
+  <h1>Inline variant definition</h1>
+</SplitText>
+```
+
+This is equivalent to:
+
+```tsx
+<SplitText
+  variants={{
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      chars: ({ index, count }) => ({
+        opacity: 1,
+        y: 0,
+        transition: { delay: (index / count) * 0.5 }
+      })
+    }
+  }}
+  initial="hidden"
+  animate="visible"
+  options={{ type: "chars" }}
+>
+  <h1>Named variants</h1>
+</SplitText>
+```
+
+## Related
+
+- [Animation Props](/api/motion/animation-props) - Complete reference for animation props
+- [SplitText](/api/motion/split-text) - Main component documentation

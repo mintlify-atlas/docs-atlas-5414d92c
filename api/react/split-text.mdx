@@ -1,0 +1,91 @@
+---
+title: "<SplitText>"
+description: "React component for splitting text into animatable characters, words, and lines"
+---
+
+The `<SplitText>` component wraps a single child element and splits its text content into characters, words, and/or lines. It handles lifecycle cleanup automatically on unmount and provides callbacks for animation control.
+
+## Import
+
+```tsx
+import { SplitText } from "griffo/react";
+```
+
+## Basic Usage
+
+```tsx
+import { SplitText } from "griffo/react";
+import { animate, stagger } from "motion";
+
+function App() {
+  return (
+    <SplitText
+      onSplit={({ words }) => {
+        animate(
+          words,
+          { opacity: [0, 1], y: [20, 0] },
+          { delay: stagger(0.05) }
+        );
+      }}
+    >
+      <h1>Animated Text</h1>
+    </SplitText>
+  );
+}
+```
+
+## How It Works
+
+The `<SplitText>` component:
+
+1. **Wraps your element** - Wraps a single child element (like `<h1>`, `<p>`, etc.) in a container
+2. **Waits for fonts** - By default, waits for `document.fonts.ready` before splitting
+3. **Splits the text** - Breaks text into spans based on your split type (chars, words, lines)
+4. **Applies kerning compensation** - Adjusts margins to preserve original spacing
+5. **Calls your callback** - Provides split elements to `onSplit`, `onViewportEnter`, or `onViewportLeave`
+
+## Key Concepts
+
+### Wrapper Element
+
+The component creates a wrapper element (default: `<div>`) around your child. You can customize this:
+
+```tsx
+<SplitText as="section" className="hero">
+  <h1>Your Text</h1>
+</SplitText>
+```
+
+### Single Child Requirement
+
+The component accepts **only one child element**. To split multiple elements, use multiple `<SplitText>` components:
+
+```tsx
+// ✓ Correct
+<SplitText>
+  <h1>Title</h1>
+</SplitText>
+<SplitText>
+  <p>Paragraph</p>
+</SplitText>
+
+// ✗ Wrong
+<SplitText>
+  <h1>Title</h1>
+  <p>Paragraph</p>
+</SplitText>
+```
+
+### Callback Modes
+
+The component supports three callback modes:
+
+- **onSplit** - Called immediately after splitting (default behavior)
+- **onViewportEnter/onViewportLeave** - Called when element enters/leaves viewport
+- **Both** - Use `onSplit` for initial setup and viewport callbacks for scroll animations
+
+## Related Pages
+
+- [Props](/api/react/props) - Complete props reference with examples
+- [Lifecycle](/api/react/lifecycle) - Component lifecycle and event timing
+- [SplitTextElements](/api/types#splittextelements) - Return type for callbacks

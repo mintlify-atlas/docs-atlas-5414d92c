@@ -1,0 +1,511 @@
+---
+title: MorphText
+description: Deep dive into <MorphText> from griffo/morph for smooth character-by-character or word-by-word text transitions
+---
+
+## Overview
+
+`<MorphText>` animates text changes with stable token identity. Matching characters/words smoothly interpolate position, new ones enter, and removed ones exit.
+
+```tsx
+import { MorphText } from "griffo/morph";
+```
+
+<Info>
+  **Bundle size:** 7.95 kB (minified + brotli)
+</Info>
+
+## Basic Usage
+
+```tsx
+import { MorphText } from "griffo/morph";
+import { useState } from "react";
+
+function App() {
+  const [text, setText] = useState("Hello");
+
+  return (
+    <>
+      <MorphText>{text}</MorphText>
+      <button onClick={() => setText("World")}>Change</button>
+    </>
+  );
+}
+```
+
+<Video src="/videos/morph-demo.mp4" />
+
+## How It Works
+
+`<MorphText>` maintains stable identity for each character/word across text changes:
+
+1. **Persist**: Matching tokens animate to new positions
+2. **Enter**: New tokens fade/slide in
+3. **Exit**: Removed tokens fade/slide out
+
+<Steps>
+  <Step title="Initial render">
+    `"Hello"` → 5 character tokens created
+  </Step>
+  <Step title="Text changes">
+    `"World"` → Compares with previous "Hello"
+  </Step>
+  <Step title="Reconciliation">
+    - `"o"` persists (moves to new position)
+    - `"l"` persists (appears twice, reuses existing)
+    - `"H"`, `"e"` exit
+    - `"W"`, `"r"`, `"d"` enter
+  </Step>
+</Steps>
+
+## Split By Characters
+
+Default mode splits text into individual characters:
+
+```tsx
+<MorphText splitBy="chars">{text}</MorphText>
+```
+
+### Character-level Transitions
+
+```tsx
+import { MorphText } from "griffo/morph";
+import { useState } from "react";
+
+function CountdownTimer() {
+  const [count, setCount] = useState(10);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCount((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return <MorphText>{count.toString()}</MorphText>;
+}
+```
+
+## Split By Words
+
+Split text into words instead of characters:
+
+```tsx
+<MorphText splitBy="words">{text}</MorphText>
+```
+
+### Word-level Transitions
+
+```tsx
+import { MorphText } from "griffo/morph";
+import { useState } from "react";
+
+const statuses = ["Loading...", "Processing data", "Almost there", "Complete!"];
+
+function StatusText() {
+  const [index, setIndex] = useState(0);
+
+  return <MorphText splitBy="words">{statuses[index]}</MorphText>;
+}
+```
+
+## Animation States
+
+### Initial (Enter)
+
+Applied to new tokens when they first appear:
+
+```tsx
+<MorphText
+  initial={{ opacity: 0, y: -20 }}
+  animate={{ opacity: 1, y: 0 }}
+  splitBy="chars"
+>
+  {text}
+</MorphText>
+```
+
+### Animate (Persist)
+
+Applied to all tokens (both entering and persisting):
+
+```tsx
+<MorphText
+  initial={{ opacity: 0, scale: 0.5 }}
+  animate={{ opacity: 1, scale: 1 }}
+  splitBy="chars"
+>
+  {text}
+</MorphText>
+```
+
+### Exit
+
+Applied to tokens being removed:
+
+```tsx
+<MorphText
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: -20 }}
+  splitBy="chars"
+>
+  {text}
+</MorphText>
+```
+
+## Function Variants
+
+Access token index and total count:
+
+```tsx
+<MorphText
+  initial={({ index, count }) => ({
+    opacity: 0,
+    x: index < count / 2 ? -75 : 75,
+  })}
+  animate={{ opacity: 1, x: 0 }}
+  exit={({ index, count }) => ({
+    opacity: 0,
+    x: index < count / 2 ? 75 : -75,
+  })}
+  splitBy="chars"
+>
+  {text}
+</MorphText>
+```
+
+### MorphVariantInfo
+
+<ParamField path="index" type="number">
+  Index of this token among all animated tokens
+</ParamField>
+
+<ParamField path="count" type="number">
+  Total number of animated tokens
+</ParamField>
+
+## Transition Options
+
+```tsx
+<MorphText
+  initial={{ opacity: 0, scale: 0.8 }}
+  animate={{ opacity: 1, scale: 1 }}
+  transition={{
+    type: "spring",
+    bounce: 0.3,
+    duration: 0.6,
+  }}
+  splitBy="chars"
+>
+  {text}
+</MorphText>
+```
+
+## Stagger Delays
+
+Stagger entering tokens:
+
+```tsx
+<MorphText
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  stagger={0.03} // 30ms delay between each entering token
+  splitBy="chars"
+>
+  {text}
+</MorphText>
+```
+
+<Info>
+  Stagger only applies to entering tokens. Persisting tokens animate immediately to their new positions.
+</Info>
+
+## Animate Initial
+
+By default, the first render skips entrance animations:
+
+```tsx
+// First render: no animation
+<MorphText initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+  {text}
+</MorphText>
+
+// First render: animated
+<MorphText
+  animateInitial
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+>
+  {text}
+</MorphText>
+```
+
+## Morph Complete Callback
+
+```tsx
+<MorphText
+  onMorphComplete={() => {
+    console.log("All entrance and exit animations finished");
+  }}
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+>
+  {text}
+</MorphText>
+```
+
+<Note>
+  `onMorphComplete` fires when all entering tokens finish animating AND all exiting tokens complete their exit.
+</Note>
+
+## Font Loading
+
+```tsx
+// Wait for fonts (default)
+<MorphText waitForFonts>{text}</MorphText>
+
+// Split immediately
+<MorphText waitForFonts={false}>{text}</MorphText>
+```
+
+## Reduced Motion
+
+```tsx
+<MorphText
+  reducedMotion="user" // Respects prefers-reduced-motion
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+>
+  {text}
+</MorphText>
+```
+
+<ParamField path="reducedMotion" type="'user' | 'always' | 'never'" default="user">
+  - `"user"`: Disable animations if `prefers-reduced-motion` is set
+  - `"always"`: Always disable animations
+  - `"never"`: Always enable animations
+</ParamField>
+
+## Wrapper Element
+
+```tsx
+<MorphText
+  as="h1"
+  className="morph-heading"
+  style={{ fontSize: "2rem" }}
+>
+  {text}
+</MorphText>
+```
+
+Renders:
+
+```html
+<h1 class="morph-heading" style="font-size: 2rem" aria-label="{text}">
+  <!-- morphing tokens -->
+</h1>
+```
+
+## Complete Examples
+
+### Loading States
+
+```tsx
+import { MorphText } from "griffo/morph";
+import { useState, useEffect } from "react";
+
+const messages = [
+  "Loading...",
+  "Fetching data",
+  "Processing",
+  "Almost there",
+  "Complete!",
+];
+
+function LoadingStatus() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((i) => (i < messages.length - 1 ? i + 1 : i));
+    }, 2000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <MorphText
+      splitBy="words"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.4 }}
+    >
+      {messages[index]}
+    </MorphText>
+  );
+}
+```
+
+### Counter with Directional Animation
+
+```tsx
+import { MorphText } from "griffo/morph";
+import { useState, useRef } from "react";
+
+function Counter() {
+  const [count, setCount] = useState(0);
+  const prevCountRef = useRef(0);
+  const direction = count > prevCountRef.current ? 1 : -1;
+
+  const handleChange = (delta: number) => {
+    prevCountRef.current = count;
+    setCount(count + delta);
+  };
+
+  return (
+    <>
+      <MorphText
+        splitBy="chars"
+        initial={{ opacity: 0, y: -20 * direction }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 * direction }}
+        transition={{ duration: 0.3 }}
+      >
+        {count.toString()}
+      </MorphText>
+      <button onClick={() => handleChange(1)}>+</button>
+      <button onClick={() => handleChange(-1)}>-</button>
+    </>
+  );
+}
+```
+
+### Word Scramble Effect
+
+```tsx
+import { MorphText } from "griffo/morph";
+import { useState } from "react";
+
+const words = ["Design", "Develop", "Deploy", "Deliver"];
+
+function RotatingWords() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((i) => (i + 1) % words.length);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <h1>
+      We{" "}
+      <MorphText
+        splitBy="chars"
+        initial={({ index, count }) => ({
+          opacity: 0,
+          y: 20,
+        })}
+        animate={{ opacity: 1, y: 0 }}
+        exit={({ index, count }) => ({
+          opacity: 0,
+          y: -20,
+        })}
+        transition={{ duration: 0.4 }}
+        stagger={0.03}
+      >
+        {words[index]}
+      </MorphText>
+    </h1>
+  );
+}
+```
+
+## Technical Details
+
+### Stable Token Identity
+
+Griffo uses a diffing algorithm to track tokens across renders:
+
+1. Each unique character/word gets a stable ID on first appearance
+2. When text changes, matching tokens keep their IDs
+3. AnimatePresence tracks these IDs for smooth layout animations
+
+### Layout Animations
+
+All tokens use Motion's `layout="position"` for automatic position interpolation when text reflows.
+
+## Props Reference
+
+<ParamField path="children" type="string" required>
+  Text content to morph
+</ParamField>
+
+<ParamField path="splitBy" type="'chars' | 'words'" default="chars">
+  Split text by characters or words
+</ParamField>
+
+<ParamField path="initial" type="MotionInitialProp | ((info: MorphVariantInfo) => MotionInitialProp)">
+  Initial state for entering tokens
+</ParamField>
+
+<ParamField path="animate" type="MotionAnimateProp | ((info: MorphVariantInfo) => MotionAnimateProp)">
+  Target state for all tokens
+</ParamField>
+
+<ParamField path="exit" type="MotionExitProp | ((info: MorphVariantInfo) => MotionExitProp)">
+  Exit state for removed tokens
+</ParamField>
+
+<ParamField path="transition" type="AnimationOptions">
+  Motion transition options
+</ParamField>
+
+<ParamField path="stagger" type="number">
+  Delay between entering tokens (in seconds)
+</ParamField>
+
+<ParamField path="animateInitial" type="boolean" default={false}>
+  Animate on first render
+</ParamField>
+
+<ParamField path="onMorphComplete" type="() => void">
+  Called when all entrance/exit animations finish
+</ParamField>
+
+<ParamField path="waitForFonts" type="boolean" default={true}>
+  Wait for `document.fonts.ready` before splitting
+</ParamField>
+
+<ParamField path="reducedMotion" type="'user' | 'always' | 'never'" default="user">
+  Reduced motion handling
+</ParamField>
+
+<ParamField path="as" type="keyof HTMLElementTagNameMap" default="span">
+  Wrapper element type
+</ParamField>
+
+<ParamField path="className" type="string">
+  Wrapper class name
+</ParamField>
+
+<ParamField path="style" type="CSSProperties">
+  Wrapper styles
+</ParamField>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Motion" icon="wand-magic-sparkles" href="/guides/motion">
+    SplitText with Motion variants
+  </Card>
+  <Card title="React" icon="react" href="/guides/react">
+    Callback-based React component
+  </Card>
+  <Card title="Accessibility" icon="universal-access" href="/guides/accessibility">
+    Screen reader support
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimization tips
+  </Card>
+</CardGroup>

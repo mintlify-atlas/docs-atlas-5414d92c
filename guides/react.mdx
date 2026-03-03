@@ -1,0 +1,416 @@
+---
+title: React
+description: Deep dive into <SplitText> from griffo/react with lifecycle callbacks and viewport observers
+---
+
+## Overview
+
+The React `<SplitText>` component wraps the core `splitText()` function with React lifecycle management, automatic cleanup, and viewport-based animation triggers.
+
+```tsx
+import { SplitText } from "griffo/react";
+```
+
+<Info>
+  **Bundle size:** 8.23 kB (minified + brotli)
+</Info>
+
+## Basic Usage
+
+```tsx
+import { SplitText } from "griffo/react";
+import { animate, stagger } from "motion";
+
+<SplitText
+  options={{ type: "words" }}
+  onSplit={({ words }) => {
+    animate(words, { opacity: [0, 1], y: [20, 0] }, { delay: stagger(0.05) });
+  }}
+>
+  <h1>Hello World</h1>
+</SplitText>;
+```
+
+<Warning>
+  `<SplitText>` requires exactly one child element. The child's text content will be split.
+</Warning>
+
+## Lifecycle Callbacks
+
+### onSplit
+
+Called immediately after text is split:
+
+```tsx
+<SplitText
+  options={{ type: "chars" }}
+  onSplit={({ chars, words, lines, revert }) => {
+    console.log(`Split ${chars.length} characters`);
+
+    // Return animation for revertOnComplete support
+    return animate(chars, { opacity: [0, 1] });
+  }}
+>
+  <p>Animated text</p>
+</SplitText>
+```
+
+<ParamField path="onSplit" type="(result: SplitTextElements) => AnimationCallbackReturn">
+  Receives `{ chars, words, lines, revert }`. Return animation for auto-revert.
+</ParamField>
+
+### onResplit
+
+Called when `autoSplit` triggers a re-split:
+
+```tsx
+<SplitText
+  options={{ type: "words,lines" }}
+  autoSplit
+  onResplit={({ words, lines }) => {
+    console.log(`Re-split into ${lines.length} lines`);
+    animate(words, { opacity: [0, 1] });
+  }}
+>
+  <p>Responsive text</p>
+</SplitText>
+```
+
+### onRevert
+
+Called when text is reverted (manual or automatic):
+
+```tsx
+<SplitText
+  onSplit={({ words }) => animate(words, { opacity: [0, 1] })}
+  revertOnComplete
+  onRevert={() => {
+    console.log("Text reverted to original HTML");
+  }}
+>
+  <h2>Temporary split</h2>
+</SplitText>
+```
+
+## Viewport Intersection
+
+Trigger animations when elements enter/leave viewport:
+
+### onViewportEnter
+
+```tsx
+<SplitText
+  options={{ type: "words" }}
+  viewport={{ amount: 0.5 }}
+  onViewportEnter={({ words }) => {
+    return animate(words, { opacity: [0, 1] }, { delay: stagger(0.05) });
+  }}
+>
+  <p>Animates when scrolled into view</p>
+</SplitText>
+```
+
+### onViewportLeave
+
+```tsx
+<SplitText
+  options={{ type: "chars" }}
+  viewport={{ amount: 0.3 }}
+  onViewportEnter={({ chars }) => animate(chars, { opacity: 1, scale: 1 })}
+  onViewportLeave={({ chars }) => animate(chars, { opacity: 0, scale: 0.8 })}
+>
+  <h3>Fades out when leaving viewport</h3>
+</SplitText>
+```
+
+### Viewport Options
+
+```tsx
+<SplitText
+  viewport={{
+    once: true, // Only trigger once
+    amount: 0.5, // 50% visibility required
+    margin: "0px 0px -100px 0px", // IntersectionObserver rootMargin
+  }}
+  onViewportEnter={({ words }) => animate(words, { opacity: [0, 1] })}
+>
+  <p>Scroll-triggered animation</p>
+</SplitText>
+```
+
+<ParamField path="viewport.once" type="boolean" default={false}>
+  Only trigger `onViewportEnter` once
+</ParamField>
+
+<ParamField path="viewport.amount" type="number | 'some' | 'all'" default={0}>
+  How much of the element must be visible
+</ParamField>
+
+<ParamField path="viewport.leave" type="number | 'some' | 'all'" default={0}>
+  How much visibility is required to consider out of view
+</ParamField>
+
+<ParamField path="viewport.margin" type="string" default="0px">
+  IntersectionObserver `rootMargin`
+</ParamField>
+
+## Initial Styles
+
+Apply styles immediately after split:
+
+```tsx
+<SplitText
+  options={{ type: "words" }}
+  initialStyles={{
+    words: { opacity: 0, transform: "translateY(20px)" },
+  }}
+  onViewportEnter={({ words }) => animate(words, { opacity: 1, y: 0 })}
+>
+  <h2>Pre-styled words</h2>
+</SplitText>
+```
+
+### Function-based Styles
+
+```tsx
+<SplitText
+  options={{ type: "chars" }}
+  initialStyles={{
+    chars: (el, index) => ({
+      opacity: 0,
+      transform: `translateY(${20 + index * 2}px)`,
+    }),
+  }}
+>
+  <p>Staggered initial positions</p>
+</SplitText>
+```
+
+## Reset on Viewport Leave
+
+Re-apply initial styles when leaving viewport:
+
+```tsx
+<SplitText
+  options={{ type: "words" }}
+  initialStyles={{
+    words: { opacity: 0, transform: "translateY(20px)" },
+  }}
+  viewport={{ amount: 0.5 }}
+  onViewportEnter={({ words }) =>
+    animate(words, { opacity: 1, y: 0 }, { delay: stagger(0.05) })
+  }
+  resetOnViewportLeave // Re-applies initialStyles
+>
+  <p>Re-animates each time you scroll into view</p>
+</SplitText>
+```
+
+<Info>
+  `resetOnViewportLeave` is perfect for scroll-triggered animations that should reset when scrolling away.
+</Info>
+
+## Auto-revert on Complete
+
+```tsx
+<SplitText
+  options={{ type: "words" }}
+  onSplit={({ words }) => animate(words, { opacity: [0, 1] })}
+  revertOnComplete // Reverts when animation finishes
+>
+  <h1>Temporary split</h1>
+</SplitText>
+```
+
+<Warning>
+  `revertOnComplete` requires `onSplit` or `onViewportEnter` to return an animation (Motion, GSAP, or Promise).
+</Warning>
+
+## Auto-split on Resize
+
+```tsx
+<SplitText
+  options={{ type: "words,lines" }}
+  autoSplit
+  onResplit={({ lines }) => {
+    console.log(`Re-split into ${lines.length} lines`);
+  }}
+>
+  <p>Responsive text that re-splits on resize</p>
+</SplitText>
+```
+
+## Font Loading
+
+By default, `<SplitText>` waits for `document.fonts.ready`:
+
+```tsx
+// Default behavior (recommended)
+<SplitText waitForFonts={true}>
+  <h1>Waits for fonts</h1>
+</SplitText>
+
+// Disable for immediate split
+<SplitText waitForFonts={false}>
+  <h1>Splits immediately</h1>
+</SplitText>
+```
+
+<Note>
+  The component is hidden with `visibility: hidden` while waiting for fonts.
+</Note>
+
+## Wrapper Element
+
+Customize the wrapper element:
+
+```tsx
+<SplitText
+  as="section"
+  className="my-wrapper"
+  style={{ padding: "2rem" }}
+  options={{ type: "words" }}
+>
+  <h1>Custom wrapper</h1>
+</SplitText>
+```
+
+Renders:
+
+```html
+<section class="my-wrapper" style="padding: 2rem; visibility: visible;">
+  <h1><!-- split text here --></h1>
+</section>
+```
+
+## Forwarding Refs
+
+```tsx
+import { useRef } from "react";
+
+const MyComponent = () => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <SplitText ref={wrapperRef} options={{ type: "words" }}>
+      <h1>Ref forwarded to wrapper</h1>
+    </SplitText>
+  );
+};
+```
+
+## Complete Example
+
+```tsx
+import { SplitText } from "griffo/react";
+import { animate, stagger } from "motion";
+
+export default function AnimatedHeading() {
+  return (
+    <SplitText
+      options={{ type: "chars,words", mask: "words" }}
+      initialStyles={{
+        words: { overflow: "clip" },
+        chars: { transform: "translateY(100%)" },
+      }}
+      viewport={{ amount: 0.5, once: true }}
+      onViewportEnter={({ chars }) =>
+        animate(
+          chars,
+          { y: 0 },
+          {
+            duration: 0.65,
+            delay: stagger(0.02),
+          }
+        )
+      }
+      revertOnComplete
+    >
+      <h1>Scroll to reveal</h1>
+    </SplitText>
+  );
+}
+```
+
+## Props Reference
+
+<ParamField path="children" type="ReactElement" required>
+  Single React element containing text to split
+</ParamField>
+
+<ParamField path="options" type="SplitTextOptions">
+  Core split options (see [Vanilla JS Guide](/guides/vanilla-js#full-api-reference))
+</ParamField>
+
+<ParamField path="onSplit" type="(result: SplitTextElements) => AnimationCallbackReturn">
+  Called after split. Return animation for `revertOnComplete`.
+</ParamField>
+
+<ParamField path="onResplit" type="(result: SplitTextElements) => void">
+  Called when `autoSplit` triggers
+</ParamField>
+
+<ParamField path="onRevert" type="() => void">
+  Called when text is reverted
+</ParamField>
+
+<ParamField path="onViewportEnter" type="(result: SplitTextElements) => AnimationCallbackReturn">
+  Called when entering viewport
+</ParamField>
+
+<ParamField path="onViewportLeave" type="(result: SplitTextElements) => AnimationCallbackReturn">
+  Called when leaving viewport
+</ParamField>
+
+<ParamField path="viewport" type="ViewportOptions">
+  IntersectionObserver configuration
+</ParamField>
+
+<ParamField path="autoSplit" type="boolean" default={false}>
+  Re-split on container resize
+</ParamField>
+
+<ParamField path="revertOnComplete" type="boolean" default={false}>
+  Auto-revert when animation completes
+</ParamField>
+
+<ParamField path="resetOnViewportLeave" type="boolean" default={false}>
+  Re-apply `initialStyles` when leaving viewport
+</ParamField>
+
+<ParamField path="initialStyles" type="InitialStyles">
+  Apply styles after split (static or function-based)
+</ParamField>
+
+<ParamField path="waitForFonts" type="boolean" default={true}>
+  Wait for `document.fonts.ready` before splitting
+</ParamField>
+
+<ParamField path="as" type="keyof HTMLElementTagNameMap" default="div">
+  Wrapper element type
+</ParamField>
+
+<ParamField path="className" type="string">
+  Wrapper class name
+</ParamField>
+
+<ParamField path="style" type="React.CSSProperties">
+  Wrapper styles
+</ParamField>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Vanilla JS" icon="js" href="/guides/vanilla-js">
+    Framework-agnostic core API
+  </Card>
+  <Card title="Motion" icon="wand-magic-sparkles" href="/guides/motion">
+    Declarative animations
+  </Card>
+  <Card title="Accessibility" icon="universal-access" href="/guides/accessibility">
+    Screen reader support
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimization tips
+  </Card>
+</CardGroup>

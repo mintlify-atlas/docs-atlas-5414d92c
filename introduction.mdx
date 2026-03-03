@@ -1,0 +1,170 @@
+---
+title: Introduction
+description: Kerning-aware text splitting for beautiful typography and animation
+---
+
+## What is Griffo?
+
+Griffo is a kerning-aware text splitting library that lets you split text into characters, words, and lines for animation — without breaking your typography.
+
+Most splitting libraries wrap each character in a `<span>` and call it done, but that destroys the kerning between character pairs. Griffo compensates for this automatically, maintaining pixel-perfect spacing even when every character is wrapped in its own element.
+
+<CodeGroup>
+```ts Vanilla
+import { splitText } from "griffo";
+import { animate, stagger } from "motion";
+
+const { chars } = splitText(document.querySelector("h1"), { type: "chars" });
+animate(chars, { opacity: [0, 1], y: [20, 0] }, { delay: stagger(0.02) });
+```
+
+```tsx React
+import { SplitText } from "griffo/react";
+import { animate, stagger } from "motion";
+
+<SplitText
+  options={{ type: "words" }}
+  onSplit={({ words }) => {
+    animate(words, { opacity: [0, 1], y: [20, 0] }, { delay: stagger(0.05) });
+  }}
+>
+  <h1>Hello World</h1>
+</SplitText>
+```
+
+```tsx Motion
+import { SplitText } from "griffo/motion";
+import { stagger } from "motion";
+
+<SplitText
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.65, delay: stagger(0.04) }}
+  options={{ type: "words" }}
+>
+  <h1>Hello World</h1>
+</SplitText>
+```
+</CodeGroup>
+
+## Quick Links
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get up and running in minutes with vanilla JS, React, or Motion
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Griffo with npm, yarn, or pnpm
+  </Card>
+  <Card title="Core API" icon="code" href="/api/core/split-text">
+    Learn the splitText() function API
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Kerning Compensation" icon="text">
+    Maintains original character spacing when splitting by chars — no visual jumping
+  </Card>
+  <Card title="Nested Elements" icon="brackets-curly">
+    Preserves `<a>`, `<em>`, `<strong>` and other inline elements with all attributes
+  </Card>
+  <Card title="Line Detection" icon="lines-leaning">
+    Groups words into rendered lines automatically based on layout
+  </Card>
+  <Card title="Dash Handling" icon="minus">
+    Wraps naturally after em-dashes, en-dashes, hyphens, and slashes
+  </Card>
+  <Card title="Auto Re-split" icon="arrows-rotate">
+    Re-splits on container resize for responsive animations
+  </Card>
+  <Card title="Auto Revert" icon="clock-rotate-left">
+    Restores original HTML after animations complete
+  </Card>
+  <Card title="Masking" icon="scissors">
+    Clip containers for reveal animations
+  </Card>
+  <Card title="Emoji Support" icon="face-smile">
+    Handles compound emojis and complex Unicode characters
+  </Card>
+  <Card title="Accessible" icon="universal-access">
+    Automatic screen reader support, even with nested links or emphasis
+  </Card>
+  <Card title="TypeScript" icon="file-code">
+    Full type definitions included
+  </Card>
+  <Card title="Zero Dependencies" icon="feather">
+    7 kB core with no external packages
+  </Card>
+  <Card title="Library Agnostic" icon="puzzle-piece">
+    Works with Motion, GSAP, CSS, WAAPI, or any animation code
+  </Card>
+</CardGroup>
+
+## Entry Points
+
+Griffo provides multiple entry points optimized for different use cases:
+
+| Import | Use for | Size |
+|--------|---------|------|
+| `griffo` | Vanilla JS or any framework | 7.11 kB |
+| `griffo/react` | React with callback/lifecycle control | 8.23 kB |
+| `griffo/motion` | Declarative Motion animations | 13.78 kB |
+| `griffo/morph` | Standalone MorphText component | 7.95 kB |
+
+<Note>Sizes are minified + brotli compressed</Note>
+
+## Why Griffo?
+
+### The Problem
+
+When you wrap each character in a `<span>` for animation, browsers lose the kerning information between character pairs. This causes text to subtly shift and look awkward:
+
+```html
+<!-- Before: natural kerning preserved -->
+<h1>WAVE</h1>
+
+<!-- After naive split: kerning lost, text looks spaced out -->
+<h1>
+  <span>W</span>
+  <span>A</span>
+  <span>V</span>
+  <span>E</span>
+</h1>
+```
+
+### The Solution
+
+Griffo measures the exact kerning between each character pair **before** splitting, then applies margin compensation **after** splitting to restore the original spacing:
+
+```ts
+import { splitText } from "griffo";
+
+const { chars } = splitText(element, { type: "chars" });
+// Each char span has compensating margins that restore kerning
+```
+
+The result is pixel-perfect typography that maintains your design's integrity while enabling character-level animation.
+
+## Next Steps
+
+<Steps>
+  <Step title="Install Griffo">
+    Add Griffo to your project with npm, yarn, or pnpm
+    
+    [Installation Guide →](/installation)
+  </Step>
+  
+  <Step title="Follow the Quickstart">
+    Learn the basics with vanilla JS, React, or Motion examples
+    
+    [Quickstart →](/quickstart)
+  </Step>
+  
+  <Step title="Explore the API">
+    Dive into the full API documentation for advanced features
+    
+    [API Reference →](/api/core/split-text)
+  </Step>
+</Steps>

@@ -1,0 +1,412 @@
+---
+title: "Lifecycle"
+description: "Component lifecycle, event timing, and behavior details"
+---
+
+Understanding when `<SplitText>` splits text, triggers callbacks, and cleans up is essential for proper animation timing.
+
+## Component Lifecycle
+
+The `<SplitText>` component follows this lifecycle:
+
+```
+1. Mount & Render
+   ↓
+2. Wait for Fonts (if waitForFonts=true)
+   ↓
+3. Split Text
+   ↓
+4. Apply Kerning Compensation
+   ↓
+5. Apply Initial Styles/Classes
+   ↓
+6. Call onSplit Callback
+   ↓
+7. Set Up Viewport Observer (if needed)
+   ↓
+8. Trigger Viewport Callbacks (when in view)
+   ↓
+9. Cleanup & Revert (on unmount or manual revert)
+```
+
+## Font Loading
+
+### Default Behavior (waitForFonts=true)
+
+By default, `<SplitText>` waits for `document.fonts.ready` before splitting to prevent layout shifts:
+
+```tsx
+<SplitText
+  onSplit={({ chars }) => {
+    // Called AFTER fonts load
+    animate(chars, { opacity: [0, 1] });
+  }}
+>
+  <h1>Text with Custom Font</h1>
+</SplitText>
+```
+
+While waiting:
+- Wrapper element has `visibility: hidden`
+- Text is invisible but occupies space (no layout shift)
+- After split completes, wrapper becomes `visibility: visible`
+
+### Immediate Splitting (waitForFonts=false)
+
+Disable font waiting for immediate splits:
+
+```tsx
+<SplitText
+  waitForFonts={false}
+  onSplit={({ chars }) => {
+    // Called immediately, may cause FOUC
+    animate(chars, { opacity: [0, 1] });
+  }}
+>
+  <h1>Splits Immediately</h1>
+</SplitText>
+```
+
+**Warning**: This may cause Flash of Unstyled Content (FOUC) if fonts load after splitting.
+
+## Callback Timing
+
+### onSplit
+
+Called **once** after initial split completes:
+
+```tsx
+<SplitText
+  onSplit={({ chars, words, lines }) => {
+    // ✓ Split complete
+    // ✓ Kerning compensation applied
+    // ✓ Initial styles/classes applied
+    // ✓ Elements in DOM and ready to animate
+    
+    return animate(chars, { opacity: [0, 1] });
+  }}
+>
+  <h1>Text</h1>
+</SplitText>
+```
+
+**When NOT called**:
+- If viewport callbacks are used, `onSplit` still fires immediately
+- If component unmounts before fonts load
+
+### onResplit
+
+Called when `autoSplit` triggers a **full re-split** (not on initial split):
+
+```tsx
+<SplitText
+  autoSplit={true}
+  onSplit={({ chars }) => {
+    // Called on initial split
+    console.log("Initial split");
+    animate(chars, { opacity: [0, 1] });
+  }}
+  onResplit={({ chars }) => {
+    // Called on window resize (new elements!)
+    console.log("Re-split after resize");
+    animate(chars, { opacity: [0, 1] });
+  }}
+>
+  <h1>Responsive Text</h1>
+</SplitText>
+```
+
+**Important**: `onResplit` receives **new element references**. Old elements are removed from DOM.
+
+### onViewportEnter
+
+Called when element **enters viewport** based on `viewport` options:
+
+```tsx
+<SplitText
+  viewport={{ once: true, amount: 0.5 }}
+  onViewportEnter={({ chars }) => {
+    // Called when 50% of element is visible
+    return animate(chars, { opacity: [0, 1] });
+  }}
+>
+  <h1>Scroll Animation</h1>
+</SplitText>
+```
+
+**Timing**:
+1. Component mounts and splits text
+2. IntersectionObserver is created
+3. If element is already in view, callback triggers immediately
+4. Otherwise, triggers when scrolling into view
+
+**With `once: true`**: Callback only fires once, then observer disconnects.
+
+### onViewportLeave
+
+Called when element **leaves viewport**:
+
+```tsx
+<SplitText
+  onViewportEnter={({ chars }) => {
+    animate(chars, { opacity: 1, y: 0 });
+  }}
+  onViewportLeave={({ chars }) => {
+    // Called when leaving viewport
+    animate(chars, { opacity: 0 });
+  }}
+>
+  <h1>Text</h1>
+</SplitText>
+```
+
+**Not called** if `viewport.once` is `true` (observer disconnects after first enter).
+
+## Viewport Observer
+
+The viewport observer is created if **any** of these are present:
+- `viewport` prop
+- `onViewportEnter` callback
+- `onViewportLeave` callback
+- `resetOnViewportLeave` is `true`
+
+### Intersection Timing
+
+```tsx
+<SplitText
+  viewport={{
+    once: false,      // Can trigger multiple times
+    amount: 0.5,      // 50% visibility required to "enter"
+    leave: 0.2        // 20% visibility required to stay "in view"
+  }}
+  onViewportEnter={({ chars }) => {
+    console.log("Entered"); // Fires at 50% visibility
+  }}
+  onViewportLeave={({ chars }) => {
+    console.log("Left");    // Fires below 20% visibility
+  }}
+>
+  <h1>Text</h1>
+</SplitText>
+```
+
+### Root Margin Example
+
+```tsx
+<SplitText
+  viewport={{
+    margin: "-100px" // Trigger 100px before entering viewport
+  }}
+  onViewportEnter={({ chars }) => {
+    // Fires earlier, giving animation time to play
+    animate(chars, { opacity: [0, 1] }, { duration: 0.8 });
+  }}
+>
+  <h1>Scroll Text</h1>
+</SplitText>
+```
+
+## Reset on Viewport Leave
+
+Use `resetOnViewportLeave` to re-apply initial styles when scrolling away:
+
+```tsx
+<SplitText
+  initialStyles={{
+    chars: { opacity: 0, transform: "translateY(20px)" }
+  }}
+  resetOnViewportLeave={true}
+  onViewportEnter={({ chars }) => {
+    // Animates in when scrolling down
+    return animate(chars, { opacity: 1, y: 0 });
+  }}
+>
+  <h1>Repeatable Scroll Animation</h1>
+</SplitText>
+```
+
+**Flow**:
+1. Element leaves viewport → Initial styles re-applied
+2. Element enters viewport → `onViewportEnter` fires
+3. Animation plays from initial state again
+
+## Auto-Resplit on Resize
+
+When `autoSplit={true}`, the component monitors window resize:
+
+```tsx
+<SplitText
+  autoSplit={true}
+  options={{ resplitDebounceMs: 200 }} // Debounce resize events
+  onResplit={({ chars }) => {
+    // Called with NEW element references
+    animate(chars, { opacity: [0, 1] });
+  }}
+>
+  <h1>Responsive Text</h1>
+</SplitText>
+```
+
+**Process**:
+1. Window resizes
+2. Debounce timer waits (`resplitDebounceMs`, default 100ms)
+3. Original HTML is restored
+4. Text is split again with new layout
+5. Kerning compensation applied
+6. Initial styles/classes applied
+7. `onResplit` callback fired
+
+**Important**: Previous split elements are **removed from DOM**. Store animations in refs if you need to clean them up.
+
+## Cleanup & Unmounting
+
+When component unmounts or `revert()` is called:
+
+```tsx
+function Example() {
+  const [show, setShow] = useState(true);
+
+  return (
+    <>
+      {show && (
+        <SplitText
+          onSplit={({ chars, revert }) => {
+            // Store revert function if needed
+            return animate(chars, { opacity: [0, 1] });
+          }}
+          onRevert={() => {
+            console.log("Cleaned up!");
+          }}
+        >
+          <h1>Text</h1>
+        </SplitText>
+      )}
+      <button onClick={() => setShow(false)}>Remove</button>
+    </>
+  );
+}
+```
+
+**Cleanup process**:
+1. `onRevert` callback fires (if provided)
+2. IntersectionObserver disconnects
+3. Resize observer disconnects (if `autoSplit`)
+4. Split HTML is reverted to original
+5. Component unmounts
+
+**Automatic cleanup** on:
+- Component unmount
+- Manual `revert()` call
+- Animation completion (if `revertOnComplete={true}`)
+
+## Revert on Complete
+
+Automatically revert after animation finishes:
+
+```tsx
+<SplitText
+  revertOnComplete={true}
+  onSplit={({ chars }) => {
+    // Must return animation or promise
+    return animate(chars, { opacity: [0, 1] });
+  }}
+  onRevert={() => {
+    console.log("Animation complete, text reverted");
+  }}
+>
+  <h1>Text</h1>
+</SplitText>
+```
+
+**Requirements**:
+- `revertOnComplete={true}`
+- Callback must return animation or promise
+- Works with both `onSplit` and `onViewportEnter`
+
+**After revert**:
+- DOM is restored to original HTML
+- Split spans are removed
+- Observers are disconnected
+- `onRevert` callback fires
+
+## React StrictMode
+
+The component handles React StrictMode double-mounting correctly:
+
+```tsx
+<React.StrictMode>
+  <SplitText onSplit={({ chars }) => animate(chars, { opacity: 1 })}>
+    <h1>Text</h1>
+  </SplitText>
+</React.StrictMode>
+```
+
+**Behavior**:
+1. First mount → Split → Unmount (cleanup)
+2. Second mount → Split again (fresh state)
+
+No duplicate animations or memory leaks.
+
+## Common Patterns
+
+### Immediate Animation
+
+```tsx
+<SplitText
+  onSplit={({ chars }) => {
+    animate(chars, { opacity: [0, 1] }, { delay: stagger(0.05) });
+  }}
+>
+  <h1>Plays on Mount</h1>
+</SplitText>
+```
+
+### Scroll-Triggered Animation
+
+```tsx
+<SplitText
+  viewport={{ once: true, amount: 0.3 }}
+  onViewportEnter={({ words }) => {
+    return animate(words, { opacity: [0, 1] }, { delay: stagger(0.1) });
+  }}
+>
+  <h1>Plays on Scroll</h1>
+</SplitText>
+```
+
+### Repeatable Scroll Animation
+
+```tsx
+<SplitText
+  initialStyles={{ chars: { opacity: 0, transform: "translateY(20px)" } }}
+  resetOnViewportLeave={true}
+  viewport={{ once: false }}
+  onViewportEnter={({ chars }) => {
+    return animate(chars, { opacity: 1, y: 0 });
+  }}
+>
+  <h1>Plays Every Time</h1>
+</SplitText>
+```
+
+### Manual Control
+
+```tsx
+function ManualExample() {
+  const [revertFn, setRevertFn] = useState<(() => void) | null>(null);
+
+  return (
+    <>
+      <SplitText
+        onSplit={({ chars, revert }) => {
+          setRevertFn(() => revert);
+          animate(chars, { opacity: [0, 1] });
+        }}
+      >
+        <h1>Text</h1>
+      </SplitText>
+      <button onClick={() => revertFn?.()}>Revert</button>
+    </>
+  );
+}
+```

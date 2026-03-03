@@ -1,0 +1,263 @@
+---
+title: "SplitTextResult"
+description: "Return value of the splitText function"
+---
+
+## Overview
+
+The `SplitTextResult` interface defines the object returned by the `splitText` function. It contains arrays of split elements and a `revert` function to restore the original HTML.
+
+## Type Definition
+
+```typescript
+interface SplitTextResult {
+  chars: HTMLSpanElement[];
+  words: HTMLSpanElement[];
+  lines: HTMLSpanElement[];
+  revert: () => void;
+}
+```
+
+## Properties
+
+### chars
+
+<ResponseField name="chars" type="HTMLSpanElement[]">
+  Array of character span elements. Empty array if `type` option doesn't include `"chars"`.
+</ResponseField>
+
+**Example:**
+```typescript
+const { chars } = splitText(element, { type: "chars" });
+
+chars.forEach((char, index) => {
+  console.log(`Character ${index}: ${char.textContent}`);
+});
+```
+
+**Element Structure:**
+```html
+<span class="split-char" data-char-index="0" style="--char-index: 0">H</span>
+<span class="split-char" data-char-index="1" style="--char-index: 1">e</span>
+<span class="split-char" data-char-index="2" style="--char-index: 2">l</span>
+<span class="split-char" data-char-index="3" style="--char-index: 3">l</span>
+<span class="split-char" data-char-index="4" style="--char-index: 4">o</span>
+```
+
+### words
+
+<ResponseField name="words" type="HTMLSpanElement[]">
+  Array of word span elements. Empty array if `type` option doesn't include `"words"`.
+</ResponseField>
+
+**Example:**
+```typescript
+const { words } = splitText(element, { type: "words" });
+
+words.forEach((word, index) => {
+  console.log(`Word ${index}: ${word.textContent}`);
+});
+```
+
+**Element Structure:**
+```html
+<span class="split-word" data-word-index="0" style="--word-index: 0">
+  <span class="split-char">H</span>
+  <span class="split-char">e</span>
+  <span class="split-char">l</span>
+  <span class="split-char">l</span>
+  <span class="split-char">o</span>
+</span>
+<span class="split-word" data-word-index="1" style="--word-index: 1">
+  <span class="split-char">W</span>
+  <span class="split-char">o</span>
+  <span class="split-char">r</span>
+  <span class="split-char">l</span>
+  <span class="split-char">d</span>
+</span>
+```
+
+<Note>
+  When splitting chars, word wrappers are always created internally for proper spacing, even if `type` doesn't include `"words"`. They are only returned in the `words` array if explicitly requested.
+</Note>
+
+### lines
+
+<ResponseField name="lines" type="HTMLSpanElement[]">
+  Array of line span elements. Empty array if `type` option doesn't include `"lines"`.
+</ResponseField>
+
+**Example:**
+```typescript
+const { lines } = splitText(element, { type: "lines" });
+
+lines.forEach((line, index) => {
+  console.log(`Line ${index}: ${line.textContent}`);
+});
+```
+
+**Element Structure:**
+```html
+<span class="split-line" data-line-index="0" style="--line-index: 0">
+  <span class="split-word">...</span>
+  <span class="split-word">...</span>
+</span>
+<span class="split-line" data-line-index="1" style="--line-index: 1">
+  <span class="split-word">...</span>
+  <span class="split-word">...</span>
+</span>
+```
+
+**Line Detection:**
+Lines are detected automatically based on the vertical position of word elements. Lines wrap based on the container width and CSS properties like `max-width`.
+
+### revert
+
+<ResponseField name="revert" type="() => void">
+  Function that reverts the element to its original HTML and cleans up all observers and timers.
+</ResponseField>
+
+**Behavior:**
+- Restores the original innerHTML
+- Restores the original `aria-label` attribute (if applicable)
+- Disconnects all ResizeObservers
+- Clears all debounce timers
+- Removes window resize listeners
+- Keeps `font-variant-ligatures: none` if chars were split (prevents visual shift)
+- Automatically calls internal `dispose()` to clean up resources
+
+**Example:**
+```typescript
+const result = splitText(element);
+
+// Animate
+animate(result.words, { opacity: [0, 1] }).finished.then(() => {
+  // Revert when animation completes
+  result.revert();
+});
+```
+
+**Auto-Revert:**
+Use `revertOnComplete` option for automatic reverting:
+```typescript
+splitText(element, {
+  onSplit: ({ words }) => animate(words, { opacity: [0, 1] }),
+  revertOnComplete: true,
+});
+// Automatically reverts after animation completes
+```
+
+## Usage Examples
+
+### Animating Characters
+
+```typescript
+import { splitText } from "griffo";
+import { animate, stagger } from "motion";
+
+const { chars, revert } = splitText(element, { type: "chars" });
+
+animate(
+  chars,
+  { opacity: [0, 1], y: [20, 0] },
+  { delay: stagger(0.05) }
+).finished.then(() => {
+  revert();
+});
+```
+
+### Animating Words and Lines
+
+```typescript
+const { words, lines } = splitText(element, { type: "words,lines" });
+
+// Animate lines sliding up
+animate(
+  lines,
+  { opacity: [0, 1], y: [40, 0] },
+  { delay: stagger(0.1) }
+);
+
+// Animate words within each line
+words.forEach((word, index) => {
+  animate(
+    word,
+    { opacity: [0, 1] },
+    { delay: index * 0.02 }
+  );
+});
+```
+
+### Conditional Animation
+
+```typescript
+const { chars, words, lines } = splitText(element, {
+  type: "chars,words,lines",
+});
+
+if (chars.length > 0) {
+  // Animate individual characters
+  animate(chars, { opacity: [0, 1] });
+} else if (words.length > 0) {
+  // Fallback to word animation
+  animate(words, { opacity: [0, 1] });
+}
+```
+
+### Accessing Element Properties
+
+```typescript
+const { chars } = splitText(element, {
+  type: "chars",
+  propIndex: true,
+});
+
+chars.forEach((char) => {
+  // Access CSS custom property
+  const index = char.style.getPropertyValue("--char-index");
+  
+  // Access data attribute
+  const dataIndex = char.dataset.charIndex;
+  
+  // Access position
+  const { top, left } = char.getBoundingClientRect();
+  
+  console.log({ index, dataIndex, top, left });
+});
+```
+
+## Empty Arrays
+
+Arrays are empty when the corresponding split type is not requested:
+
+```typescript
+const result = splitText(element, { type: "words" });
+
+console.log(result.chars.length); // 0 (chars not requested)
+console.log(result.words.length); // > 0 (words requested)
+console.log(result.lines.length); // 0 (lines not requested)
+```
+
+## Type Guards
+
+```typescript
+function animateIfAvailable(result: SplitTextResult) {
+  if (result.chars.length > 0) {
+    animate(result.chars, { opacity: [0, 1] });
+  }
+  
+  if (result.words.length > 0) {
+    animate(result.words, { y: [20, 0] });
+  }
+  
+  if (result.lines.length > 0) {
+    animate(result.lines, { x: [-40, 0] });
+  }
+}
+```
+
+## See Also
+
+- [splitText](/api/core/split-text) - Main function documentation
+- [Options](/api/core/options) - Configuration options
+- [Animation](/guides/animation) - Animation guide

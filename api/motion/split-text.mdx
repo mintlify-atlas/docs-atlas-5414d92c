@@ -1,0 +1,223 @@
+---
+title: SplitText
+description: Motion-powered text splitting with declarative animations
+---
+
+The `<SplitText>` component from `griffo/motion` extends the React version with full Motion animation support. Use declarative variants to animate characters, words, and lines with stagger effects, scroll triggers, and viewport animations.
+
+## Import
+
+```tsx
+import { SplitText } from "griffo/motion";
+```
+
+## Basic Example
+
+```tsx
+import { SplitText } from "griffo/motion";
+import { stagger } from "motion";
+
+<SplitText
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.65, delay: stagger(0.04) }}
+  options={{ type: "words" }}
+>
+  <h1>Hello World</h1>
+</SplitText>
+```
+
+## Props
+
+`<SplitText>` includes all React props from `griffo/react` plus Motion-specific animation props.
+
+### Core Props
+
+All props from the [React SplitText component](/api/react/split-text) are supported, including:
+
+- `options` - Split configuration (type, classes, masking)
+- `onSplit` - Callback after initial split
+- `onResplit` - Callback when text re-splits
+- `autoSplit` - Re-split on resize
+- `viewport` - Viewport observer configuration
+- `initialStyles` / `initialClasses` - Initial element styling
+
+### Motion-Specific Props
+
+See the full [Animation Props](/api/motion/animation-props) and [Variants](/api/motion/variants) reference pages for detailed information on these props:
+
+<ParamField path="initial" type="string | VariantDefinition | false">
+  Variant applied instantly after split. Can be a variant name (string) or inline variant definition.
+  
+  Set to `false` to skip initial variant application.
+</ParamField>
+
+<ParamField path="animate" type="string | VariantDefinition">
+  Variant to animate to after split. Can be a variant name or inline definition.
+</ParamField>
+
+<ParamField path="variants" type="Record<string, VariantDefinition>">
+  Named variant definitions. Each variant can target all elements or specific types (chars/words/lines/wrapper).
+  
+  See [Variants](/api/motion/variants) for detailed examples.
+</ParamField>
+
+<ParamField path="transition" type="AnimationOptions">
+  Global transition options applied to all variant animations.
+  
+  See [Animation Props](/api/motion/animation-props) for usage.
+</ParamField>
+
+<ParamField path="whileInView" type="string | VariantDefinition">
+  Variant to animate to when entering viewport.
+</ParamField>
+
+<ParamField path="whileScroll" type="string | VariantDefinition">
+  Variant driven by scroll position. Takes priority over `animate` and `whileInView`.
+</ParamField>
+
+<ParamField path="whileHover" type="string | VariantDefinition">
+  Variant to animate to on hover.
+</ParamField>
+
+<ParamField path="whileTap" type="string | VariantDefinition">
+  Variant to animate to on tap/click.
+</ParamField>
+
+<ParamField path="whileFocus" type="string | VariantDefinition">
+  Variant to animate to when focused.
+</ParamField>
+
+<ParamField path="exit" type="string | VariantDefinition | false">
+  Variant to animate to when component exits (requires AnimatePresence).
+  
+  Set to `false` to skip exit animation.
+</ParamField>
+
+<ParamField path="delayScope" type="'global' | 'local'" default="global">
+  Controls how delay functions resolve indices.
+  
+  - `global`: Uses `globalIndex` and `globalCount` (all elements of that type)
+  - `local`: Uses `index` and `count` (elements within parent group)
+</ParamField>
+
+<ParamField path="custom" type="any">
+  Custom data passed to function variants via the `custom` parameter in `VariantInfo`.
+</ParamField>
+
+## Per-Type Variant Targets
+
+Variants support both flat targets (applied to all split elements) and per-type targets for granular control:
+
+```tsx
+<SplitText
+  variants={{
+    hidden: {
+      chars: { opacity: 0, y: 10 },
+      lines: { opacity: 0 },
+      wrapper: { opacity: 1 }
+    },
+    visible: {
+      chars: { opacity: 1, y: 0 },
+      lines: { opacity: 1 },
+      wrapper: { opacity: 1 }
+    }
+  }}
+  initial="hidden"
+  animate="visible"
+  options={{ type: "chars,lines" }}
+>
+  <h1>Granular control</h1>
+</SplitText>
+```
+
+See [Variants](/api/motion/variants) for complete per-type target documentation.
+
+## Function Variants
+
+Use function variants to compute animation properties based on element position:
+
+```tsx
+<SplitText
+  variants={{
+    hidden: { chars: { opacity: 0, y: 10 } },
+    visible: {
+      chars: ({ lineIndex, index }) => ({
+        opacity: 1,
+        y: 0,
+        transition: {
+          delay: stagger(0.02, { startDelay: lineIndex * 0.15 })
+        }
+      })
+    }
+  }}
+  initial="hidden"
+  animate="visible"
+  options={{ type: "chars,lines", mask: "lines" }}
+>
+  <p>Per-line staggered reveal</p>
+</SplitText>
+```
+
+See [Variants](/api/motion/variants) for complete function variant documentation.
+
+## Examples
+
+### Scroll-Triggered Animation
+
+```tsx
+<SplitText
+  initial={{ opacity: 0, y: 20 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ amount: 0.5, once: true }}
+  transition={{ duration: 0.6, delay: stagger(0.05) }}
+  options={{ type: "words" }}
+>
+  <h2>Animates when scrolled into view</h2>
+</SplitText>
+```
+
+### Hover Animation
+
+```tsx
+<SplitText
+  initial={{ opacity: 1 }}
+  whileHover={{
+    chars: ({ index, count }) => ({
+      y: -10,
+      transition: {
+        delay: (index / count) * 0.3
+      }
+    })
+  }}
+  options={{ type: "chars" }}
+>
+  <span>Hover me</span>
+</SplitText>
+```
+
+### Exit Animation with AnimatePresence
+
+```tsx
+import { AnimatePresence } from "motion/react";
+
+<AnimatePresence>
+  {show && (
+    <SplitText
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      transition={{ duration: 0.4, delay: stagger(0.02) }}
+      options={{ type: "chars" }}
+    >
+      <p>I can exit gracefully</p>
+    </SplitText>
+  )}
+</AnimatePresence>
+```
+
+## Related
+
+- [Animation Props](/api/motion/animation-props) - Complete reference for Motion animation props
+- [Variants](/api/motion/variants) - Deep dive into the variants system
+- [React SplitText](/api/react/split-text) - Base React component props
