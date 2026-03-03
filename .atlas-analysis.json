@@ -1,0 +1,99 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Griffo",
+  "projectDescription": "Kerning-aware text splitting library for animation with React and Motion integration",
+  "theme": "palm",
+  "primaryColor": "#8B5CF6",
+  "lightColor": "#A78BFA",
+  "darkColor": "#6D28D9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/vanilla-js",
+              "guides/react",
+              "guides/motion",
+              "guides/morph",
+              "guides/kerning",
+              "guides/accessibility",
+              "guides/performance"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core",
+            "pages": [
+              "api/core/split-text",
+              "api/core/options",
+              "api/core/return-value"
+            ]
+          },
+          {
+            "group": "React",
+            "pages": [
+              "api/react/split-text",
+              "api/react/props",
+              "api/react/lifecycle"
+            ]
+          },
+          {
+            "group": "Motion",
+            "pages": [
+              "api/motion/split-text",
+              "api/motion/animation-props",
+              "api/motion/variants"
+            ]
+          },
+          {
+            "group": "Morph",
+            "pages": [
+              "api/morph/morph-text",
+              "api/morph/props"
+            ]
+          },
+          {
+            "group": "Helpers",
+            "pages": [
+              "api/helpers/create-split-clones"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Kerning compensation for natural character spacing",
+    "Nested element preservation with attributes",
+    "Line detection and grouping",
+    "Auto re-split on resize",
+    "React and Motion integration",
+    "Text morphing with stable token identity",
+    "Automatic accessibility support",
+    "Zero dependencies core"
+  ],
+  "publicApiSurface": [
+    "splitText(element, options?)",
+    "<SplitText> (React)",
+    "<SplitText> (Motion)",
+    "<MorphText>",
+    "createSplitClones(split, options?)",
+    "SplitTextOptions",
+    "SplitTextResult"
+  ]
+}
