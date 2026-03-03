@@ -271,6 +271,71 @@ The Motion `<SplitText>` component accepts all Motion animation props. These pro
   ```
 </ParamField>
 
+## Behavior Props
+
+<ParamField path="animateOnResplit" type="boolean" default={false}>
+  When true, auto-resplit (triggered by window resize with `autoSplit: true`) replays the initial → animate transition.
+  
+  ```tsx
+  <SplitText
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    options={{ type: "words", autoSplit: true }}
+    animateOnResplit={true}
+  >
+    <h1>Re-animates on resize</h1>
+  </SplitText>
+  ```
+  
+  When `false` (default), resplits maintain the current animated state without replaying the animation.
+</ParamField>
+
+<ParamField path="reducedMotion" type="'user' | 'always' | 'never'" default="'user'">
+  Controls how the component handles reduced motion preferences.
+  
+  - **`user`**: Respects system `prefers-reduced-motion` setting
+  - **`always`**: Always reduces motion (instant transitions)
+  - **`never`**: Never reduces motion
+  
+  ```tsx
+  <SplitText
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    reducedMotion="user"
+  >
+    <h1>Respects accessibility preferences</h1>
+  </SplitText>
+  ```
+</ParamField>
+
+## Hover Events
+
+<ParamField path="onHoverStart" type="() => void">
+  Called when hover starts on the wrapper element.
+  
+  ```tsx
+  <SplitText
+    whileHover={{ scale: 1.05 }}
+    onHoverStart={() => console.log("Hover started")}
+  >
+    <button>Hover me</button>
+  </SplitText>
+  ```
+</ParamField>
+
+<ParamField path="onHoverEnd" type="() => void">
+  Called when hover ends on the wrapper element.
+  
+  ```tsx
+  <SplitText
+    whileHover={{ scale: 1.05 }}
+    onHoverEnd={() => console.log("Hover ended")}
+  >
+    <button>Hover me</button>
+  </SplitText>
+  ```
+</ParamField>
+
 ## Flat vs Per-Type Targets
 
 All animation props accept either:
